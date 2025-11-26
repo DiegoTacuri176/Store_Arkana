@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,10 @@ export function CategoryManager({ initialCategories }: { initialCategories: Cate
   const [createImageUrl, setCreateImageUrl] = useState("")
   const [editImageUrl, setEditImageUrl] = useState("")
   const router = useRouter()
+
+  useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

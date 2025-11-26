@@ -12,10 +12,11 @@ export default async function AdminCategoriesPage() {
     redirect("/login")
   }
 
+  // CORRECCIÓN: Agregamos "AND p.status = 'approved'" para contar solo los aprobados
   const categories = await query(
     `SELECT c.*, COUNT(p.id) as product_count
      FROM categories c
-     LEFT JOIN products p ON c.id = p.category_id
+     LEFT JOIN products p ON c.id = p.category_id AND p.status = 'approved'
      GROUP BY c.id
      ORDER BY c.name ASC`,
   )

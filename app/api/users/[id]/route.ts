@@ -2,17 +2,17 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/server/mysql"
 import { hashPassword } from "@/lib/password"
 
+// 1. CORRECCIÓN: Definir params como una Promesa
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 // GET /api/users/[id]
 export async function GET(request: NextRequest, { params }: Props) {
   try {
-    const {id} = params // CORRECCIÓN: Desestructuración correcta
+    const { id } = await params
 
     const [user] = await query(
-      // Usando 'avatar' (columna correcta)
       `SELECT id, email, name, role, avatar, bio, university, major, created_at
        FROM users WHERE id = ?`,
       [id],
@@ -35,11 +35,10 @@ export async function GET(request: NextRequest, { params }: Props) {
 // PUT /api/users/[id]
 export async function PUT(request: NextRequest, { params }: Props) {
   try {
-    // CORRECCIÓN: Desestructuramos params al inicio de la función
-    const { id } = params 
+    // 3. CORRECCIÓN: Esperar (await) a que params se resuelva aquí también
+    const { id } = await params
     
     const body = await request.json()
-    // 'avatar' es el campo correcto de la base de datos
     const { name, bio, avatar, university, major, password } = body 
 
     const updates: string[] = []

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,8 +19,7 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  // Usamos el avatar existente o un placeholder
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(user.avatar || "/placeholder-user.jpg") 
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(user.avatar || "/placeholder-user.jpg")
   const [formData, setFormData] = useState({
     name: user.name,
     bio: user.bio || "",
@@ -29,18 +27,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
     major: user.major || "",
   })
 
-
   const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null)
-
 
   const displayAvatarUrl = uploadedAvatarUrl || currentAvatarUrl
 
-
   const handleImageUpload = (url: string) => {
     setUploadedAvatarUrl(url)
-
   }
-
 
   const handleAvatarSave = async (url: string) => {
     setLoading(true)
@@ -65,20 +58,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
   }
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      let dataToSubmit = formData;
-      
+      let dataToSubmit = formData
+
       if (uploadedAvatarUrl) {
-          await handleAvatarSave(uploadedAvatarUrl);
-          
-          setCurrentAvatarUrl(uploadedAvatarUrl);
-          setUploadedAvatarUrl(null); 
-          
+        await handleAvatarSave(uploadedAvatarUrl)
+        setCurrentAvatarUrl(uploadedAvatarUrl)
+        setUploadedAvatarUrl(null)
       }
 
       const res = await fetch(`/api/users/${user.id}`, {
@@ -106,23 +96,21 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <CardTitle>Foto de Perfil</CardTitle>
           <CardDescription>Tu foto aparecerá en tus trabajos publicados</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4"> 
+        <CardContent className="space-y-4">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              <AvatarImage 
-                src={displayAvatarUrl} 
-                style={{ objectFit: 'cover' }} 
-              /> 
+              <AvatarImage src={displayAvatarUrl} style={{ objectFit: "cover" }} />
               <AvatarFallback>{user.name[0]}</AvatarFallback>
             </Avatar>
-            
-            <ImageUpload 
-              onImageUpload={handleImageUpload} 
+
+            {/* Pasamos el userId al componente */}
+            <ImageUpload
+              onImageUpload={handleImageUpload}
               currentImage={currentAvatarUrl}
               label="Cambiar Foto"
               description="JPG, PNG. Máximo 10MB"
+              userId={user.id}
             />
-            
           </div>
         </CardContent>
       </Card>

@@ -21,6 +21,17 @@ export function Header() {
   const [user, setUser] = useState(AuthService.getCurrentUser())
   const [cartCount, setCartCount] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [avatarUrl, setavatarUrl] = useState("/placeholder-user.jpg")
+
+  useEffect(() => {
+    if (user?.avatar) {
+      setavatarUrl(user.avatar)
+      console.log(avatarUrl)
+    } else {
+      setavatarUrl("/placeholder-user.jpg")
+      console.log(avatarUrl)
+    }
+  }, [user])
 
   useEffect(() => {
     const updateCart = () => {
@@ -50,7 +61,9 @@ export function Header() {
     window.location.href = "/"
   }
   
-  const avatarUrl = user?.avatar || "/placeholder-user.jpg" 
+
+  
+  // const avatarUrl = user?.avatar || "/placeholder-user.jpg" 
 
 
   return (

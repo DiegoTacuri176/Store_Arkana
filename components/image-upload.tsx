@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef } from "react"
 import { Upload, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +12,7 @@ interface ImageUploadProps {
   label?: string
   description?: string
   maxSize?: number // in MB
+  userId?: string // <--- Nueva prop opcional
 }
 
 export function ImageUpload({
@@ -21,6 +21,7 @@ export function ImageUpload({
   label = "Imagen",
   description = "PNG, JPG, WebP hasta 10MB",
   maxSize = 10,
+  userId, // <--- Desestructuramos
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,31 +31,32 @@ export function ImageUpload({
   const handleFileSelect = async (file: File) => {
     setError(null)
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       setError("Tipo de archivo no válido. Solo se permiten JPEG, PNG, WebP y GIF.")
       return
     }
 
-    // Validate file size
     if (file.size > maxSize * 1024 * 1024) {
       setError(`El archivo excede el límite de ${maxSize}MB`)
       return
     }
 
-    // Show preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreview(e.target?.result as string)
     }
     reader.readAsDataURL(file)
 
-    // Upload file
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append("file", file)
+      
+      // Si se proporcionó un userId, lo agregamos a la petición
+      if (userId) {
+        formData.append("userId", userId)
+      }
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -79,7 +81,6 @@ export function ImageUpload({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
     const files = e.dataTransfer.files
     if (files.length > 0) {
       handleFileSelect(files[0])

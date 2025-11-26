@@ -3,15 +3,16 @@ import { query } from "@/lib/server/mysql"
 import { cookies } from "next/headers"
 
 // GET /api/categories/[id] - Get single category
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params // Aseguramos esperar los params
     const [category] = await query(
       `SELECT c.*, COUNT(p.id) as product_count
        FROM categories c
        LEFT JOIN products p ON c.id = p.category_id AND p.status = 'approved'
        WHERE c.id = ?
        GROUP BY c.id`,
-      [params.id],
+      [id],
     )
 
     if (!category) {
@@ -25,11 +26,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params // Aseguramos esperar los params
+
     // Check if user is admin
     const cookieStore = await cookies()
-    const authCookie = cookieStore.get("auth_user")
+    
+    // CORRECCIÓN: Usar el nombre correcto de la cookie "marketplace_current_user"
+    const authCookie = cookieStore.get("marketplace_current_user")
 
     if (!authCookie) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
@@ -51,10 +56,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       `UPDATE categories 
        SET name = ?, slug = ?, description = ?, icon = ?, image_url = ?
        WHERE id = ?`,
-      [name, slug, description, icon, image_url || null, params.id],
+      [name, slug, description, icon, image_url || null, id],
     )
 
-    const [category] = await query("SELECT * FROM categories WHERE id = ?", [params.id])
+    const [category] = await query("SELECT * FROM categories WHERE id = ?", [id])
 
     return NextResponse.json(category)
   } catch (error: any) {
@@ -63,11 +68,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params // Aseguramos esperar los params
+
     // Check if user is admin
     const cookieStore = await cookies()
-    const authCookie = cookieStore.get("auth_user")
+    
+    // CORRECCIÓN: Usar el nombre correcto de la cookie
+    const authCookie = cookieStore.get("marketplace_current_user")
 
     if (!authCookie) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
@@ -83,13 +92,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Check if category has products
-    const products = await query("SELECT COUNT(*) as count FROM products WHERE category_id = ?", [params.id])
+    const products = await query("SELECT COUNT(*) as count FROM products WHERE category_id = ?", [id])
 
     if (products[0].count > 0) {
       return NextResponse.json({ error: "No se puede eliminar una categoría con productos asociados" }, { status: 400 })
     }
 
-    await query("DELETE FROM categories WHERE id = ?", [params.id])
+    await query("DELETE FROM categories WHERE id = ?", [id])
 
     return NextResponse.json({ message: "Categoría eliminada exitosamente" })
   } catch (error: any) {

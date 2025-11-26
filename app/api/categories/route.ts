@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
   try {
     // Check if user is admin
     const cookieStore = await cookies()
-    const authCookie = cookieStore.get("auth_user")
+    
+    // CORRECCIÓN: Usar "marketplace_current_user" en lugar de "auth_user"
+    const authCookie = cookieStore.get("marketplace_current_user")
 
     if (!authCookie) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
