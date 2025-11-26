@@ -1,26 +1,83 @@
-import { redirect } from "next/navigation"
+'use client'
+
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
 import { Header } from "@/components/header"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Database } from "@/lib/db"
-import { getServerAuth } from "@/lib/auth"
+import { AuthService } from "@/lib/auth"
+import type { Product, User } from "@/lib/types"
 import { Plus, MoreVertical, Eye, Edit, Trash2 } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
 import { Package } from "lucide-react"
 
-export default async function ProductsPage() {
-  const user = await getServerAuth()
+interface ProductWithSellerName extends Product {
+    sellerName?: string
+}
 
-  if (!user || (user.role !== "seller" && user.role !== "admin")) {
-    redirect("/login")
+export default function ProductsPage() {
+  const [products, setProducts] = useState<ProductWithSellerName[]>([])
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const router = useRouter()
+
+  const loadProducts = useCallback(async (userId: string) => {
+    try {
+      const myProducts = await Database.getProducts({ sellerId: userId })
+      setProducts(myProducts)
+    } catch (error) {
+      console.error("Error cargando productos:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+  
+  useEffect(() => {
+    const currentUser = AuthService.getCurrentUser()
+
+    if (!currentUser || (currentUser.role !== "seller" && currentUser.role !== "admin")) {
+      router.replace("/login")
+      return
+    }
+    setUser(currentUser)
+    loadProducts(currentUser.id)
+  }, [router, loadProducts])
+
+
+  const handleDelete = async (productId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este trabajo? Esta acción es irreversible.")) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) throw new Error("Error deleting product")
+
+      setProducts(products.filter(p => p.id !== productId))
+      alert("Trabajo eliminado exitosamente.")
+
+    } catch (error) {
+      console.error("Error eliminando producto:", error)
+      alert("Error al eliminar el trabajo. Intenta de nuevo.")
+    }
   }
 
-  const myProducts = await Database.getProducts({ sellerId: user.id })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -33,6 +90,17 @@ export default async function ProductsPage() {
       default:
         return <Badge variant="outline">{status}</Badge>
     }
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-8 text-center">
+          <p className="text-lg text-muted-foreground">Cargando dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -57,8 +125,10 @@ export default async function ProductsPage() {
           <DashboardNav />
 
           <Card>
+            {/* CORRECCIÓN: Si hay productos, el contenido tiene padding-0. Si no hay, el div interno 
+               (flex items-center justify-center) debe tener un padding para centrar el mensaje. */}
             <CardContent className="p-0">
-              {myProducts.length > 0 ? (
+              {products.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -72,12 +142,12 @@ export default async function ProductsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {myProducts.map((product) => (
+                    {products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="relative h-12 w-12 overflow-hidden rounded-md">
                             <Image
-                              src={product.images[0] || "/placeholder.svg"}
+                              src={product.images?.[0] || "/placeholder.svg"}
                               alt={product.title}
                               fill
                               className="object-cover"
@@ -116,7 +186,10 @@ export default async function ProductsPage() {
                                   Editar
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDelete(product.id)}
+                              >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Eliminar
                               </DropdownMenuItem>

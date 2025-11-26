@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     )
 
     const decoded = JSON.parse(jsonPayload)
-    const { email, name, picture: profilePicture, sub: googleId } = decoded
+    // Usamos 'picture' de Google y renombramos internamente a profilePicture
+    const { email, name, picture: profilePicture, sub: googleId } = decoded 
 
     if (!email || !name) {
       return NextResponse.json({ error: "Email y nombre son requeridos" }, { status: 400 })
@@ -39,10 +40,11 @@ export async function POST(request: NextRequest) {
     let user
 
     if (existingUser.length > 0) {
-      // User exists, update google_id if not set
+  
       user = existingUser[0]
       if (!user.google_id) {
-        await query("UPDATE users SET google_id = ?, profile_picture = ? WHERE id = ?", [
+        
+        await query("UPDATE users SET google_id = ?, avatar = ? WHERE id = ?", [ 
           googleId,
           profilePicture,
           user.id,
@@ -55,7 +57,8 @@ export async function POST(request: NextRequest) {
       const userRole = isRegister ? role : "buyer"
 
       await query(
-        "INSERT INTO users (id, email, password, name, role, google_id, profile_picture, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        
+        "INSERT INTO users (id, email, password, name, role, google_id, avatar, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
         [userId, email, defaultPassword, name, userRole, googleId, profilePicture],
       )
 
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
         name,
         role: userRole,
         google_id: googleId,
-        profile_picture: profilePicture,
+        avatar: profilePicture, // Usar avatar
       }
     }
 
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-        avatar: user.profile_picture || user.avatar,
+        avatar: user.profile_picture || user.avatar || profilePicture, 
       },
     })
   } catch (error) {

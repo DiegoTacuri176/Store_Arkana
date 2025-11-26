@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/server/mysql"
 import { v4 as uuidv4 } from "uuid"
+import { Database } from "@/lib/db" 
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,19 @@ export async function POST(request: NextRequest) {
     if (!sellerId || !title || !price) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
+
+    // 💡 SOLUCIÓN AL ERROR DE CLAVE FORÁNEA:
+    // 1. Verificar si el sellerId existe en la tabla users
+    const seller = await Database.getUser(sellerId)
+
+    if (!seller) {
+      // 2. Si no existe, devuelve un error 401 (no autorizado/inválido)
+      return NextResponse.json(
+        { error: "Vendedor no encontrado o ID de sesión inválido. Por favor, inicia sesión de nuevo." }, 
+        { status: 401 }
+      )
+    }
+    // FIN SOLUCIÓN
 
     const productId = uuidv4()
 

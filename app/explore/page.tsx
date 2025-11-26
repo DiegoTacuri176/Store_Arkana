@@ -13,22 +13,20 @@ import { SlidersHorizontal } from "lucide-react"
 
 export default async function ExplorePage() {
   
-  const products = await Database.getProducts({ status: "approved" })
-  const categories = await Database.getCategories()
+  const [products, categories] = await Promise.all([
+    Database.getProducts({ status: "approved" }), // Devuelve Promise<Product[]>
+    Database.getCategories(), // Devuelve Promise<Category[]>
+  ])
+
+  const uniqueSellerIds = Array.from(new Set(products.map(p => p.sellerId).filter(id => id)))
+
+  const sellerPromises = uniqueSellerIds.map(id => Database.getUser(id))
+  const sellers = await Promise.all(sellerPromises)
 
   const sellersMap = new Map<string, any>()
-  for (const product of products) {
-    
-    if (!product?.sellerId) {
-      console.warn("⚠️ Producto sin sellerId:", product)
-      continue
-    }
-
-    if (!sellersMap.has(product.sellerId)) {
-      const seller = await Database.getUser(product.sellerId)
-      if (seller) sellersMap.set(product.sellerId, seller)
-    }
-  }
+  sellers.forEach(seller => {
+    if (seller) sellersMap.set(seller.id, seller)
+  })
 
   return (
     <>

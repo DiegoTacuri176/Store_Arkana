@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { User } from "@/lib/types"
+import { ImageUpload } from "@/components/image-upload"
 
 interface ProfileFormProps {
   user: User
@@ -19,6 +20,8 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  // Usamos el avatar existente o un placeholder
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(user.avatar || "/placeholder-user.jpg") 
   const [formData, setFormData] = useState({
     name: user.name,
     bio: user.bio || "",
@@ -26,15 +29,62 @@ export function ProfileForm({ user }: ProfileFormProps) {
     major: user.major || "",
   })
 
+
+  const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null)
+
+
+  const displayAvatarUrl = uploadedAvatarUrl || currentAvatarUrl
+
+
+  const handleImageUpload = (url: string) => {
+    setUploadedAvatarUrl(url)
+
+  }
+
+
+  const handleAvatarSave = async (url: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: url }),
+      })
+
+      if (!res.ok) throw new Error("Error updating profile picture")
+
+      setCurrentAvatarUrl(url)
+      setUploadedAvatarUrl(null)
+      alert("Foto de perfil actualizada exitosamente")
+      router.refresh()
+    } catch (error) {
+      console.error("[v0] Error updating profile picture:", error)
+      alert("Error al actualizar la foto de perfil")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      let dataToSubmit = formData;
+      
+      if (uploadedAvatarUrl) {
+          await handleAvatarSave(uploadedAvatarUrl);
+          
+          setCurrentAvatarUrl(uploadedAvatarUrl);
+          setUploadedAvatarUrl(null); 
+          
+      }
+
       const res = await fetch(`/api/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSubmit),
       })
 
       if (!res.ok) throw new Error("Error updating profile")
@@ -56,16 +106,23 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <CardTitle>Foto de Perfil</CardTitle>
           <CardDescription>Tu foto aparecerá en tus trabajos publicados</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center gap-6">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src={user.avatar || "/placeholder.svg"} />
-            <AvatarFallback>{user.name[0]}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-2">
-            <Button type="button" variant="outline">
-              Cambiar Foto
-            </Button>
-            <p className="text-xs text-muted-foreground">JPG, PNG. Máximo 2MB</p>
+        <CardContent className="space-y-4"> 
+          <div className="flex items-center gap-6">
+            <Avatar className="h-24 w-24">
+              <AvatarImage 
+                src={displayAvatarUrl} 
+                style={{ objectFit: 'cover' }} 
+              /> 
+              <AvatarFallback>{user.name[0]}</AvatarFallback>
+            </Avatar>
+            
+            <ImageUpload 
+              onImageUpload={handleImageUpload} 
+              currentImage={currentAvatarUrl}
+              label="Cambiar Foto"
+              description="JPG, PNG. Máximo 10MB"
+            />
+            
           </div>
         </CardContent>
       </Card>

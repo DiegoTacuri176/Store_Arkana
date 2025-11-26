@@ -1,99 +1,90 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
+import { ProductCard } from "@/components/product-card"
+import type { Product, Category } from "@/lib/types" 
 
-const products = [
-  {
-    id: 1,
-    name: "Diseño Web Pro",
-    category: "diseño-web",
-    price: 2549.99,
-    image: "/macbook-pro-16-2-silver.jpg",
-    rating: 5,
-    reviews: 24,
-  },
-  {
-    id: 2,
-    name: "Diseño Web Studio",
-    category: "diseño-web",
-    price: 1899.99,
-    image: "/macbook-pro-16-2-keyboard-view.jpg",
-    rating: 4,
-    reviews: 18,
-  },
-  {
-    id: 3,
-    name: "Diseño Gráfico Master",
-    category: "diseño-grafico",
-    price: 3249.99,
-    image: "/macbook-pro-16-2-colorful-display.jpg",
-    rating: 5,
-    reviews: 32,
-  },
-  {
-    id: 4,
-    name: "Diseño Gráfico Plus",
-    category: "diseño-grafico",
-    price: 2099.99,
-    image: "/macbook-pro-16-2-side-view.jpg",
-    rating: 5,
-    reviews: 28,
-  },
-  {
-    id: 5,
-    name: "Fotografía Pro 4K",
-    category: "fotografia",
-    price: 1799.99,
-    image: "/macbook-pro-16-2-silver.jpg",
-    rating: 4,
-    reviews: 15,
-  },
-  {
-    id: 6,
-    name: "Fotografía Studio Elite",
-    category: "fotografia",
-    price: 2399.99,
-    image: "/macbook-pro-16-2-keyboard-view.jpg",
-    rating: 5,
-    reviews: 22,
-  },
-  {
-    id: 7,
-    name: "Ilustración Digital Max",
-    category: "ilustracion-digital",
-    price: 1599.99,
-    image: "/macbook-pro-16-2-colorful-display.jpg",
-    rating: 4,
-    reviews: 19,
-  },
-  {
-    id: 8,
-    name: "Ilustración Digital Premium",
-    category: "ilustracion-digital",
-    price: 2849.99,
-    image: "/macbook-pro-16-2-side-view.jpg",
-    rating: 5,
-    reviews: 26,
-  },
-]
+// Definición de tipos para la data
+interface FilteredProduct extends Product {
+  rating: number
+  reviews: number
+  categorySlug: string
+  categoryName: string
+  sellerName: string
+  seller_avatar: string // Necesario para el ProductCard
+}
 
-const categories = [
-  { id: "diseño-web", label: "Diseño Web" },
-  { id: "diseño-grafico", label: "Diseño Gráfico" },
-  { id: "fotografia", label: "Fotografía" },
-  { id: "ilustracion-digital", label: "Ilustración Digital" },
-]
+interface CategoryFilter extends Category {
+    product_count: number;
+}
+
+const MAX_PRICE = 4000 
+const MIN_PRICE = 0
 
 export default function CategoriesPage() {
-  const [wishlist, setWishlist] = useState<Set<number>>(new Set())
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 4000])
+  
+  const [loading, setLoading] = useState(true)
+  const [allProducts, setAllProducts] = useState<FilteredProduct[]>([])
+  const [categories, setCategories] = useState<CategoryFilter[]>([])
+  const [wishlist, setWishlist] = useState<Set<string>>(new Set()) // Usaremos Product ID
+  
+  // Filtros
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("all")
+  const [priceRange, setPriceRange] = useState<[number, number]>([MIN_PRICE, MAX_PRICE])
   const [sortBy, setSortBy] = useState("relevance")
+  
+  const API_BASE = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
-  const toggleWishlist = (id: number) => {
+  // 1. Carga de Categorías (solo una vez)
+  useEffect(() => {
+    fetch(`${API_BASE}/api/categories`)
+      .then((res) => res.json())
+      .then(setCategories)
+      .catch((err) => console.error("Error fetching categories:", err))
+  }, [API_BASE])
+  
+  // 2. Carga de Productos (con filtro de categoría)
+  const fetchProducts = useCallback((categorySlug: string) => {
+    setLoading(true)
+    let url = `${API_BASE}/api/products?status=approved`
+    
+    if (categorySlug !== "all") {
+      url += `&category=${categorySlug}` // El API filtra por slug (c.slug)
+    }
+
+    fetch(url, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        // Mapear la data del API para usarla en el filtro y la tarjeta de producto
+        const mappedData: FilteredProduct[] = data.map((p: any) => ({
+            ...p,
+            rating: parseFloat(p.avg_rating) || 0,
+            reviews: p.review_count || 0,
+            categorySlug: p.category_slug,
+            categoryName: p.category_name,
+            sellerName: p.seller_name,
+            seller_avatar: p.seller_avatar,
+            images: typeof p.images === "string" ? JSON.parse(p.images) : p.images || [],
+            sellerId: p.seller_id // Aseguramos el sellerId para el ProductCard
+        }))
+        setAllProducts(mappedData)
+      })
+      .catch((err) => console.error("Error fetching products:", err))
+      .finally(() => setLoading(false))
+  }, [API_BASE])
+
+  // Ejecutar fetch inicial y cuando la categoría cambie
+  useEffect(() => {
+    fetchProducts(selectedCategorySlug)
+  }, [selectedCategorySlug, fetchProducts])
+
+
+  // Manejadores de Interacción
+  const toggleWishlist = (id: string) => {
     const newWishlist = new Set(wishlist)
     if (newWishlist.has(id)) {
       newWishlist.delete(id)
@@ -103,52 +94,40 @@ export default function CategoriesPage() {
     setWishlist(newWishlist)
   }
 
-  const toggleCategory = (categoryId: string) => {
-    const newCategories = new Set(selectedCategories)
-    if (newCategories.has(categoryId)) {
-      newCategories.delete(categoryId)
-    } else {
-      newCategories.add(categoryId)
-    }
-    setSelectedCategories(newCategories)
-  }
-
+  // Lógica de filtrado y ordenamiento en el cliente
   const filteredProducts = useMemo(() => {
-    let result = products
+    let result = allProducts
 
-    // Filter by category
-    if (selectedCategories.size > 0) {
-      result = result.filter((p) => selectedCategories.has(p.category))
-    }
-
-    // Filter by price
+    // 1. Filtrar por rango de precio (CLIENT-SIDE)
     result = result.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1])
 
-    // Sort
+    // 2. Ordenar (CLIENT-SIDE)
     if (sortBy === "price-low") {
       result.sort((a, b) => a.price - b.price)
     } else if (sortBy === "price-high") {
       result.sort((a, b) => b.price - a.price)
     } else if (sortBy === "rating") {
       result.sort((a, b) => b.rating - a.rating)
-    }
+    } 
+    // "relevance" (por defecto) está manejado por el orden DESC de la API
 
     return result
-  }, [selectedCategories, priceRange, sortBy])
+  }, [allProducts, priceRange, sortBy])
+
 
   return (
     <main className="min-h-screen bg-background">
         <Header />
-      {/* Banner */}
+      {/* Banner - Mantenido sin cambios */}
       <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-6 py-8 md:py-12">
         <div className="mx-auto max-w-7xl">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
             <div className="flex flex-col justify-center">
               <h1 className="text-2xl font-bold md:text-4xl leading-tight text-balance">
-                Limited Time Offer: Save Big on Creative Tools!
+                Oferta por tiempo limitado: ¡Ahorra en Herramientas Creativas!
               </h1>
               <div className="mt-6">
-                <Button className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">Buy now</Button>
+                <Button className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">Comprar ahora</Button>
               </div>
             </div>
 
@@ -170,17 +149,28 @@ export default function CategoriesPage() {
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Categorías</h3>
             <div className="flex flex-wrap gap-2">
+                {/* Botón para todas las categorías */}
+                <button
+                    onClick={() => setSelectedCategorySlug("all")}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      selectedCategorySlug === "all"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground hover:bg-muted/70"
+                    }`}
+                >
+                    Todas las Categorías
+                </button>
               {categories.map((category) => (
                 <button
-                  key={category.id}
-                  onClick={() => toggleCategory(category.id)}
+                  key={category.slug}
+                  onClick={() => setSelectedCategorySlug(category.slug)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategories.has(category.id)
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-foreground hover:bg-gray-300"
+                    selectedCategorySlug === category.slug
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground hover:bg-muted/70"
                   }`}
                 >
-                  {category.label}
+                  {category.icon} {category.name} {category.product_count > 0 && `(${category.product_count})`}
                 </button>
               ))}
             </div>
@@ -191,25 +181,25 @@ export default function CategoriesPage() {
             <h3 className="text-sm font-semibold text-foreground">Rango de Precio</h3>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <label className="text-xs text-gray-600 block mb-1">Mínimo</label>
+                <label className="text-xs text-muted-foreground block mb-1">Mínimo</label>
                 <input
                   type="number"
-                  min="0"
-                  max="4000"
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
                   value={priceRange[0]}
-                  onChange={(e) => setPriceRange([Math.max(0, Number.parseInt(e.target.value) || 0), priceRange[1]])}
+                  onChange={(e) => setPriceRange([Math.max(MIN_PRICE, Number.parseInt(e.target.value) || 0), priceRange[1]])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-gray-600 block mb-1">Máximo</label>
+                <label className="text-xs text-muted-foreground block mb-1">Máximo</label>
                 <input
                   type="number"
-                  min="0"
-                  max="4000"
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
                   value={priceRange[1]}
                   onChange={(e) =>
-                    setPriceRange([priceRange[0], Math.min(4000, Number.parseInt(e.target.value) || 4000)])
+                    setPriceRange([priceRange[0], Math.min(MAX_PRICE, Number.parseInt(e.target.value) || MAX_PRICE)])
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 />
@@ -218,8 +208,8 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-2">
               <input
                 type="range"
-                min="0"
-                max="4000"
+                min={MIN_PRICE}
+                max={MAX_PRICE}
                 value={priceRange[1]}
                 onChange={(e) => setPriceRange([priceRange[0], Number.parseInt(e.target.value)])}
                 className="flex-1"
@@ -245,13 +235,13 @@ export default function CategoriesPage() {
                 <option value="rating">Calificación</option>
               </select>
             </div>
-            {(selectedCategories.size > 0 || priceRange[0] > 0 || priceRange[1] < 4000) && (
+            {(selectedCategorySlug !== "all" || priceRange[0] > MIN_PRICE || priceRange[1] < MAX_PRICE) && (
               <button
                 onClick={() => {
-                  setSelectedCategories(new Set())
-                  setPriceRange([0, 4000])
+                  setSelectedCategorySlug("all")
+                  setPriceRange([MIN_PRICE, MAX_PRICE])
                 }}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="text-sm font-medium text-primary hover:text-primary/80"
               >
                 Limpiar filtros
               </button>
@@ -265,81 +255,37 @@ export default function CategoriesPage() {
         <div className="mx-auto max-w-7xl">
           {/* Section Title and Results Count */}
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Trabajos Destacados</h2>
-            <span className="text-sm text-gray-600">{filteredProducts.length} Trabajos</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Trabajos Disponibles</h2>
+            <span className="text-sm text-muted-foreground">{filteredProducts.length} Trabajos</span>
           </div>
 
           {/* Products Grid */}
-          {filteredProducts.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+                <p className="text-lg text-muted-foreground">Cargando productos...</p>
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredProducts.map((product) => (
-                <div key={product.id} className="group">
-                  {/* Product Card */}
-                  <div className="bg-gray-50 rounded-lg p-6 mb-4 relative transition-colors hover:bg-gray-100">
-                    {/* Wishlist Button */}
-                    <button
-                      onClick={() => toggleWishlist(product.id)}
-                      className="absolute top-4 right-4 p-2 rounded-full hover:bg-white transition-colors"
-                      aria-label="Add to wishlist"
-                    >
-                      <Heart
-                        size={24}
-                        className={wishlist.has(product.id) ? "fill-red-500 text-red-500" : "text-gray-400"}
-                      />
-                    </button>
-
-                    {/* Product Image */}
-                    <div className="flex items-center justify-center h-48 mb-4">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        className="h-full object-contain"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="space-y-3">
-                    {/* Category Badge */}
-                    <div className="inline-block">
-                      <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                        {categories.find((c) => c.id === product.category)?.label}
-                      </span>
-                    </div>
-
-                    {/* Product Name */}
-                    <h3 className="font-semibold text-foreground text-sm md:text-base line-clamp-2">{product.name}</h3>
-
-                    {/* Rating */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex">
-                        {[...Array(product.rating)].map((_, i) => (
-                          <span key={i} className="text-blue-500">
-                            ★
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-xs md:text-sm text-gray-600">({product.reviews})</span>
-                    </div>
-
-                    {/* Price */}
-                    <div>
-                      <span className="font-bold text-foreground text-base md:text-lg">
-                        ${product.price.toFixed(2)}
-                      </span>
-                    </div>
-
-                    {/* Add to Bag Button */}
-                    <button className="w-full border-2 border-foreground text-foreground py-2 px-4 rounded-full font-medium text-sm hover:bg-foreground hover:text-background transition-colors">
-                      Add to bag
-                    </button>
-                  </div>
-                </div>
+                 <ProductCard
+                   key={product.id}
+                   product={{
+                       ...product,
+                       images: product.images,
+                       sellerId: product.sellerId,
+                       // El resto de campos de Product vienen en el spread
+                   }}
+                   seller={{
+                       id: product.sellerId,
+                       name: product.sellerName,
+                       avatar: product.seller_avatar // Pasamos el avatar del seller para la tarjeta
+                   }}
+                 />
               ))}
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-600 text-lg">No se encontraron productos con los filtros seleccionados.</p>
+              <p className="text-muted-foreground text-lg">No se encontraron productos con los filtros seleccionados.</p>
             </div>
           )}
         </div>

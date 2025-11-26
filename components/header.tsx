@@ -37,6 +37,9 @@ export function Header() {
       setUser(AuthService.getCurrentUser())
     }
 
+    // Aseguramos que el estado inicial se cargue correctamente
+    setUser(AuthService.getCurrentUser())
+
     window.addEventListener("auth-changed", handleAuthChange)
     return () => window.removeEventListener("auth-changed", handleAuthChange)
   }, [])
@@ -46,6 +49,9 @@ export function Header() {
     setUser(null)
     window.location.href = "/"
   }
+  
+  const avatarUrl = user?.avatar || "/placeholder-user.jpg" 
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-5">
@@ -101,8 +107,8 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={user.profile_picture_url || user.avatar || "/placeholder.svg"} />
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={avatarUrl} />
                     <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -126,10 +132,10 @@ export function Header() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href="/profile">Mi Perfil</Link>
+                  <Link href="/dashboard/profile">Mi Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/orders">Mis Pedidos</Link>
+                  <Link href="/dashboard/orders">Mis Pedidos</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>Cerrar Sesión</DropdownMenuItem>

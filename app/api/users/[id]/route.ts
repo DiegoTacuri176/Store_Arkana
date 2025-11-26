@@ -2,13 +2,20 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/server/mysql"
 import { hashPassword } from "@/lib/password"
 
-// GET /api/users/[id] - Get user profile
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+type Props = {
+  params: { id: string }
+}
+
+// GET /api/users/[id]
+export async function GET(request: NextRequest, { params }: Props) {
   try {
+    const {id} = params // CORRECCIÓN: Desestructuración correcta
+
     const [user] = await query(
-      `SELECT id, email, name, role, avatar, bio, university, major, profile_picture_url, created_at
+      // Usando 'avatar' (columna correcta)
+      `SELECT id, email, name, role, avatar, bio, university, major, created_at
        FROM users WHERE id = ?`,
-      [params.id],
+      [id],
     )
 
     if (!user) {
@@ -25,11 +32,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// PUT /api/users/[id] - Update user profile
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+// PUT /api/users/[id]
+export async function PUT(request: NextRequest, { params }: Props) {
   try {
+    // CORRECCIÓN: Desestructuramos params al inicio de la función
+    const { id } = params 
+    
     const body = await request.json()
-    const { name, bio, avatar, university, major, password } = body
+    // 'avatar' es el campo correcto de la base de datos
+    const { name, bio, avatar, university, major, password } = body 
 
     const updates: string[] = []
     const values: any[] = []
@@ -42,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       updates.push("bio = ?")
       values.push(bio)
     }
-    if (avatar) {
+    if (avatar !== undefined) { 
       updates.push("avatar = ?")
       values.push(avatar)
     }
@@ -64,14 +75,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 })
     }
 
-    values.push(params.id)
+    values.push(id)
 
-    await query(`UPDATE users SET ${updates.join(", ")} WHERE id = ?, values`)
+    await query(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, values) 
 
     const [user] = await query(
-      `SELECT id, email, name, role, avatar, bio, university, major, profile_picture_url, created_at
+      `SELECT id, email, name, role, avatar, bio, university, major, created_at
        FROM users WHERE id = ?`,
-      [params.id],
+      [id],
     )
 
     return NextResponse.json({

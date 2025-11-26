@@ -7,26 +7,19 @@ import { ArrowRight, Sparkles, TrendingUp, Shield } from "lucide-react"
 import Link from "next/link"
 
 export default async function HomePage() {
-  const featuredProductsRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/products?featured=true&status=approved`,
-    {
-      cache: "no-store",
-    },
-  )
+  const API_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+
+  
+  const [featuredProductsRes, allProductsRes, categoriesRes] = await Promise.all([
+    fetch(`${API_URL}/api/products?featured=true&status=approved`, { cache: "no-store" }),
+    fetch(`${API_URL}/api/products?status=approved`, { cache: "no-store" }),
+    fetch(`${API_URL}/api/categories`, { cache: "no-store" }),
+  ])
+  
   const featuredProducts = featuredProductsRes.ok ? await featuredProductsRes.json() : []
-
-  const allProductsRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/products?status=approved`,
-    {
-      cache: "no-store",
-    },
-  )
   const allProducts = allProductsRes.ok ? await allProductsRes.json() : []
-
-  const categoriesRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/categories`, {
-    cache: "no-store",
-  })
   const categoriesData = categoriesRes.ok ? await categoriesRes.json() : []
+
   const categories = Array.isArray(categoriesData) ? categoriesData : []
 
   return (
@@ -56,7 +49,7 @@ export default async function HomePage() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/register">Vender tu Trabajo</Link>
+                <Link href="/dashboard/products/new">Vender tu Trabajo</Link>
               </Button>
             </div>
 

@@ -13,14 +13,15 @@ export default async function AdminPage() {
     redirect("/login")
   }
 
-  const allProducts = await Database.getProducts()
-  const allUsers = (await Database.getUsers?.()) || []
+  const [allProducts, allUsers] = await Promise.all([
+    Database.getProducts(),
+    Database.getUsers?.() || Promise.resolve([]),
+  ])
 
   const pendingProducts = allProducts.filter((p) => p.status === "pending")
   const approvedProducts = allProducts.filter((p) => p.status === "approved")
   const rejectedProducts = allProducts.filter((p) => p.status === "rejected")
 
-  // Mock stats
   const totalRevenue = approvedProducts.length * 150
   const monthlyGrowth = 12.5
 

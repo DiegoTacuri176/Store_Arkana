@@ -4,10 +4,20 @@ import { CookieService } from "./cookies"
 export class AuthService {
   private static STORAGE_KEY = "marketplace_current_user"
 
-  // --- OBTENER USUARIO ACTUAL ---
+
   static getCurrentUser(): User | null {
     if (typeof window === "undefined") return null
     return CookieService.getJSON<User>(this.STORAGE_KEY)
+  }
+
+  static updateCurrentUser(updatedUser: Partial<User>): User | null {
+    const currentUser = this.getCurrentUser()
+    if (!currentUser) return null
+
+    const newUser = { ...currentUser, ...updatedUser }
+    CookieService.setJSON(this.STORAGE_KEY, newUser, 30)
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"))
+    return newUser
   }
 
   // --- LOGIN NORMAL ---
@@ -170,7 +180,7 @@ export class AuthService {
   }
 }
 
-// --- SERVER AUTH (para componentes de servidor) ---
+// --- SERVER AUTH ---
 export async function getServerAuth(): Promise<User | null> {
   if (typeof window !== "undefined") {
     throw new Error("getServerAuth can only be used in Server Components")

@@ -32,7 +32,7 @@ export default function LoginPage() {
   useEffect(() => {
     const user = AuthService.getCurrentUser()
     if (user) {
-      router.push(redirect)
+      router.replace(redirect) 
     }
   }, [router, redirect])
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
     setIsLoading(false)
 
     if (user) {
-      router.push(redirect)
+      router.replace(redirect) 
       router.refresh()
     } else {
       setError(loginError || "Error al iniciar sesión")

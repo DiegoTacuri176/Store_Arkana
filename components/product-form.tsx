@@ -23,8 +23,10 @@ export function ProductForm({ product }: ProductFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<any[]>([])
-  const [imageUrl, setImageUrl] = useState(product?.image_url || "")
-  const [images, setImages] = useState<string[]>(product?.images && Array.isArray(product.images) ? product.images : [])
+  
+  const [imageUrl, setImageUrl] = useState(product?.images?.[0] || "") 
+  
+  const [images, setImages] = useState<string[]>(product?.images && Array.isArray(product.images) ? product.images.slice(1) : [])
 
   useEffect(() => {
     fetch("/api/categories")
@@ -38,7 +40,6 @@ export function ProductForm({ product }: ProductFormProps) {
     description: product?.description || "",
     price: product?.price || 0,
     categoryId: product?.categoryId || "",
-    images: images,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,10 +53,18 @@ export function ProductForm({ product }: ProductFormProps) {
         return
       }
 
+      if (!imageUrl) {
+        alert("Debes subir una Imagen Principal para el producto.")
+        setLoading(false);
+        return;
+      }
+
+      const finalImages = [imageUrl, ...images]; 
+      
+      
       const submitData = {
         ...formData,
-        image_url: imageUrl,
-        images: images,
+        images: finalImages, 
       }
 
       if (product) {
@@ -87,6 +96,10 @@ export function ProductForm({ product }: ProductFormProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSecondaryImages = (uploadedImages: string[]) => {
+      setImages(uploadedImages);
   }
 
   return (
@@ -175,16 +188,13 @@ export function ProductForm({ product }: ProductFormProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Imágenes</CardTitle>
-          <CardDescription>Sube imágenes de tu trabajo (máximo 5)</CardDescription>
+          <CardTitle>Imágenes Secundarias</CardTitle>
+          <CardDescription>Sube imágenes adicionales de tu trabajo (máximo 5)</CardDescription>
         </CardHeader>
         <CardContent>
           <MultiImageUpload
-            onImagesUpload={(uploadedImages) => {
-              setImages(uploadedImages)
-              setFormData({ ...formData, images: uploadedImages })
-            }}
-            currentImages={images}
+            onImagesUpload={handleSecondaryImages}
+            currentImages={images} 
             maxImages={5}
           />
         </CardContent>
