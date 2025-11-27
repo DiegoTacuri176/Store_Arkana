@@ -62,7 +62,7 @@ export class Database {
     }
   }
 
-  static async createProduct(product: Omit<Product, "id" | "createdAt" | "updatedAt">): Promise<Product> {
+  static async createProduct(product: Omit<Product, "id" | "updatedAt">): Promise<Product> {
     const id = uuidv4()
     const sql = `
       INSERT INTO products (
@@ -84,7 +84,7 @@ export class Database {
 
     const params = [
       id,
-      product.sellerId,
+      product.seller_id,
       product.categoryId,
       product.title,
       product.description,
@@ -92,6 +92,7 @@ export class Database {
       JSON.stringify(product.images || []),
       product.status || "pending",
       product.featured ? 1 : 0,
+      product.created_at
     ]
 
     await query(sql, params)

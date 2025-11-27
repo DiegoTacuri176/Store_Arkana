@@ -18,20 +18,11 @@ import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function Header() {
+  // Inicializamos con la cookie para que no haya "flickeo", pero luego actualizamos
   const [user, setUser] = useState(AuthService.getCurrentUser())
   const [cartCount, setCartCount] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [avatarUrl, setavatarUrl] = useState("/placeholder-user.jpg")
-
-  useEffect(() => {
-    if (user?.avatar) {
-      setavatarUrl(user.avatar)
-      console.log(avatarUrl)
-    } else {
-      setavatarUrl("/placeholder-user.jpg")
-      console.log(avatarUrl)
-    }
-  }, [user])
+  const [avatarUrl, setAvatarUrl] = useState("/placeholder-user.jpg")
 
   useEffect(() => {
     const updateCart = () => {
@@ -44,27 +35,49 @@ export function Header() {
   }, [])
 
   useEffect(() => {
-    const handleAuthChange = () => {
-      setUser(AuthService.getCurrentUser())
+    // 1. Función para obtener datos frescos de la Base de Datos
+    const fetchFreshUser = async () => {
+      try {
+        // Solo intentamos refrescar si parece que hay un usuario logueado
+        if (AuthService.isAuthenticated()) {
+          // refreshUser llama a /api/auth/me, que consulta directo a la BD
+          const freshUser = await AuthService.refreshUser()
+          if (freshUser) {
+            setUser(freshUser)
+          }
+        }
+      } catch (error) {
+        console.error("Error refreshing user data:", error)
+      }
     }
 
-    // Aseguramos que el estado inicial se cargue correctamente
-    setUser(AuthService.getCurrentUser())
+    // Ejecutamos la carga fresca al montar el componente
+    fetchFreshUser()
+
+    // Listener para cambios locales (login/logout)
+    const handleAuthChange = () => {
+      const currentUser = AuthService.getCurrentUser()
+      setUser(currentUser)
+    }
 
     window.addEventListener("auth-changed", handleAuthChange)
     return () => window.removeEventListener("auth-changed", handleAuthChange)
   }, [])
+
+  // 2. Actualizamos el avatarUrl cada vez que el objeto 'user' cambia
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarUrl(user.avatar)
+    } else {
+      setAvatarUrl("/placeholder-user.jpg")
+    }
+  }, [user])
 
   const handleLogout = () => {
     AuthService.logout()
     setUser(null)
     window.location.href = "/"
   }
-  
-
-  
-  // const avatarUrl = user?.avatar || "/placeholder-user.jpg" 
-
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-5">
@@ -121,7 +134,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={avatarUrl} />
+                    <AvatarImage src={avatarUrl} style={{ objectFit: "cover" }} />
                     <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>

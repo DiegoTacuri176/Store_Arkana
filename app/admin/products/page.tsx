@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import Link from "next/link"
-import { Header } from "@/components/header"
-import { AdminNav } from "@/components/admin-nav"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Header } from "@/components/header";
+import { AdminNav } from "@/components/admin-nav";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,62 +16,87 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-import { Database } from "@/lib/db"
-import { AuthService } from "@/lib/auth"
-import type { Product } from "@/lib/types"
-import { Eye, CheckCircle, XCircle } from "lucide-react"
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Database } from "@/lib/db";
+import { AuthService } from "@/lib/auth";
+import type { Product } from "@/lib/types";
+import { Eye, CheckCircle, XCircle } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const notify = () => toast("Here is your toast.");
 
   useEffect(() => {
-    const user = AuthService.getCurrentUser()
+    const user = AuthService.getCurrentUser();
 
     if (!user || user.role !== "admin") {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
-    loadProducts()
-  }, [])
+    // Usamos el objeto toast correctamente
+
+    loadProducts();
+  }, []);
 
   const loadProducts = async () => {
     try {
-      const allProducts = await Database.getProducts()
-      setProducts(allProducts)
+      const allProducts = await Database.getProducts();
+
+      // Añadiendo nombre del vendedor
+      const productsWithSellers = await Promise.all(
+        allProducts.map(async (product) => {
+          // Tu corrección previa de seller_id se mantiene aquí
+          const seller = await Database.getUser(product.seller_id);
+          console.log("Productos con vendedores cargados:", product.created_at);
+
+          return {
+            ...product,
+            sellerName: seller?.name || "Desconocido",
+          };
+        })
+      );
+
+      setProducts(productsWithSellers);
     } catch (error) {
-      console.error("Error cargando productos:", error)
+      console.error("Error cargando productos:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-
+  };
+  
+  // crear una function que redirija a /admin/
+  
+  
+  
   const handleApprove = async (productId: string) => {
-    await Database.updateProduct(productId, { status: "approved" })
-    loadProducts()
-  }
-
+    toast.success('Aprobado!')
+    await Database.updateProduct(productId, { status: "approved" });
+    loadProducts();
+    // esperar a que el toast se muestre antes de recargar
+  };
+  
   const handleReject = async (productId: string) => {
-    await Database.updateProduct(productId, { status: "rejected" })
-    loadProducts()
-  }
-
-  const pendingProducts = products.filter((p) => p.status === "pending")
-  const approvedProducts = products.filter((p) => p.status === "approved")
-  const rejectedProducts = products.filter((p) => p.status === "rejected")
+    toast.error('Rechazado!')
+    await Database.updateProduct(productId, { status: "rejected" });
+    loadProducts();
+    // esperar a que el toast se muestre antes de redendigir a dashboard
+  };
+  const handleGoBack = () => {
+    router.push("/admin");
+  };
+  
+  const pendingProducts = products.filter((p) => p.status === "pending");
+  const approvedProducts = products.filter((p) => p.status === "approved");
+  const rejectedProducts = products.filter((p) => p.status === "rejected");
 
   const ProductTable = ({ products }: { products: Product[] }) => (
     <Table>
+      {/* 3. IMPORTANTE: Quité el <Toaster /> de aquí porque rompía la tabla */}
       <TableHeader>
         <TableRow>
           <TableHead className="w-[80px]">Imagen</TableHead>
@@ -111,8 +136,8 @@ export default function AdminProductsPage() {
               )}
             </TableCell>
             <TableCell>
-              {product.createdAt
-                ? new Date(product.createdAt).toLocaleDateString()
+              {product.created_at
+                ? new Date(product.created_at).toLocaleDateString()
                 : "-"}
             </TableCell>
             <TableCell>
@@ -123,7 +148,7 @@ export default function AdminProductsPage() {
                   </Link>
                 </Button>
                 {product.status === "pending" && (
-                  <>
+                  <>  
                     <Button
                       variant="outline"
                       size="sm"
@@ -146,14 +171,14 @@ export default function AdminProductsPage() {
         ))}
       </TableBody>
     </Table>
-  )
+  );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p className="text-lg text-muted-foreground">Cargando...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -194,6 +219,9 @@ export default function AdminProductsPage() {
                   ) : (
                     <div className="py-12 text-center text-muted-foreground">
                       No hay trabajos pendientes de revisión
+                      <button onClick={handleGoBack}>
+                        click here
+                      </button>
                     </div>
                   )}
                 </TabsContent>
@@ -204,6 +232,7 @@ export default function AdminProductsPage() {
                   ) : (
                     <div className="py-12 text-center text-muted-foreground">
                       No hay trabajos aprobados
+                      
                     </div>
                   )}
                 </TabsContent>
@@ -222,6 +251,10 @@ export default function AdminProductsPage() {
           </Card>
         </div>
       </div>
+      {/* 4. IMPORTANTE: Coloca el Toaster al final del contenedor principal */}
+      <div>
+        <Toaster position="top-right" reverseOrder={false} />
+      </div>
     </div>
-  )
+  );
 }

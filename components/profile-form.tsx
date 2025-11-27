@@ -81,6 +81,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
       alert("Perfil actualizado exitosamente")
       router.refresh()
+      // redirect to profile page
+      router.push("/dashboard")
     } catch (error) {
       console.error("[v0] Error updating profile:", error)
       alert("Error al actualizar el perfil. Por favor intenta de nuevo.")

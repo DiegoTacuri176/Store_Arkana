@@ -33,12 +33,13 @@ export interface Product {
   images: string[]
   image_url?: string
   categoryId: string
-  sellerId: string
+  seller_id: string
   status: "pending" | "approved" | "rejected"
   featured: boolean
   views: number
-  createdAt: Date
+  created_at: string
   updatedAt: Date
+  sellerName?: string
 }
 
 export interface Review {

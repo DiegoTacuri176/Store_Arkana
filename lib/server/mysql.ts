@@ -11,7 +11,7 @@ function getPool() {
       host: process.env.DATABASE_HOST || "localhost",
       port: Number.parseInt(process.env.DATABASE_PORT || "3306"),
       user: process.env.DATABASE_USER || "root",
-      password: process.env.DATABASE_PASSWORD || "root",
+      password: process.env.DATABASE_PASSWORD || "admin",
       database: process.env.DATABASE_NAME || "student_marketplace",
       waitForConnections: true,
       connectionLimit: 10,
