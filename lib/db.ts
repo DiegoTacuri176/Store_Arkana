@@ -233,8 +233,23 @@ export class Database {
     return await queryOne<User>(sql, [email])
   }
 
-  static async getUsers(): Promise<User[]> {
-    const sql = "SELECT * FROM users ORDER BY created_at DESC"
-    return await query<User>(sql)
+  static async getUsers(filters?: { excludeRole?: User["role"] }): Promise<User[]> {
+    let sql = "SELECT * FROM users WHERE 1=1"
+    const params: any[] = []
+    
+    // Lógica para excluir un rol
+    if (filters?.excludeRole) {
+        sql += " AND role != ?"
+        params.push(filters.excludeRole)
+    }
+
+    sql += " ORDER BY created_at DESC"
+    return await query<User>(sql, params)
+  }
+
+  static async deleteUser(id: string): Promise<boolean> {
+    const sql = "DELETE FROM users WHERE id = ?"
+    const result: any = await query(sql, [id])
+    return result.affectedRows > 0
   }
 }

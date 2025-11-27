@@ -1,4 +1,7 @@
-import { redirect } from "next/navigation"
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { AdminNav } from "@/components/admin-nav"
 import { Badge } from "@/components/ui/badge"
@@ -6,19 +9,79 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Database } from "@/lib/db"
-import { getServerAuth } from "@/lib/auth"
-import { MoreVertical } from "lucide-react"
+import { AuthService } from "@/lib/auth"
+import type { User } from "@/lib/types" 
+import { MoreVertical, Loader2 } from "lucide-react" 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-export default async function AdminUsersPage() {
-  const user = await getServerAuth()
+export default function AdminUsersPage() {
+  const router = useRouter()
+  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
-  if (!user || user.role !== "admin") {
-    redirect("/login")
+  const loadUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Fetch a la nueva ruta API de gestión de usuarios
+      const res = await fetch("/api/admin/users", { cache: "no-store" }) 
+      
+      if (!res.ok) {
+          if (res.status === 403) router.replace("/login"); 
+          throw new Error(`Error fetching users: ${res.status}`);
+      }
+      
+      const usersData = await res.json()
+      setAllUsers(usersData)
+
+    } catch (error) {
+      console.error("Error loading users:", error)
+      alert("Error al cargar la lista de usuarios. Revisa la consola para detalles.")
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!window.confirm(`¿Estás seguro de que quieres suspender/eliminar al usuario "${userName}"? Esta acción es irreversible y eliminará todos sus datos.`)) {
+      return
+    }
+
+    setLoading(true) 
+
+    try {
+      const res = await fetch(`/api/admin/users?id=${userId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || "Error al eliminar usuario")
+      }
+
+      alert(`Usuario "${userName}" eliminado exitosamente.`)
+      loadUsers() 
+
+    } catch (error) {
+      console.error("Error deleting user:", error)
+      alert(`Error al eliminar al usuario. Detalles: ${error instanceof Error ? error.message : "Error desconocido"}`)
+      setLoading(false)
+    }
   }
 
-  const allUsers = (await Database.getUsers?.()) || []
+
+  useEffect(() => {
+    const user = AuthService.getCurrentUser()
+
+    if (!user || user.role !== "admin") {
+      router.replace("/login")
+      return
+    }
+    setCurrentUser(user)
+    loadUsers()
+  }, [router, loadUsers])
+  
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -43,6 +106,19 @@ export default async function AdminUsersPage() {
       return "—"
     }
   }
+  
+  if (loading || !currentUser) { 
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-8 text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground mt-4">Cargando usuarios...</p>
+        </div>
+      </div>
+    )
+  }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,7 +163,7 @@ export default async function AdminUsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>{u.email || "Sin correo"}</TableCell>
-                      <TableCell>{getRoleBadge(u.role)}</TableCell>
+                      <TableCell>{getRoleBadge(u.role || "buyer")}</TableCell>
                       <TableCell>{formatDate(u.createdAt)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -99,7 +175,11 @@ export default async function AdminUsersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>Ver Perfil</DropdownMenuItem>
                             <DropdownMenuItem>Ver Trabajos</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeleteUser(u.id, u.name || 'este usuario')}
+                              disabled={loading}
+                            >
                               Suspender
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -109,6 +189,11 @@ export default async function AdminUsersPage() {
                   ))}
                 </TableBody>
               </Table>
+              {allUsers.length === 0 && (
+                <div className="py-12 text-center text-muted-foreground">
+                    <p>No se encontraron usuarios (excluyendo administradores).</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
