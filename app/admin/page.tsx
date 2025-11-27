@@ -29,7 +29,7 @@ export default async function AdminPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container py-8">
+      <div className="container py-8 px-12">
         <div className="mb-8">
           <h1 className="font-heading text-3xl font-bold">Panel de Administración</h1>
           <p className="text-muted-foreground">Gestiona la plataforma Student Market</p>
@@ -140,8 +140,8 @@ export default async function AdminPage() {
                         </p>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {product.createdAt
-                          ? new Date(product.createdAt).toLocaleDateString()
+                        {product.created_at
+                          ? new Date(product.created_at).toLocaleDateString()
                           : "Sin fecha"}
                       </div>
                     </div>

@@ -25,12 +25,7 @@ const navItems = [
     title: "Perfil",
     href: "/dashboard/profile",
     icon: User,
-  },
-  {
-    title: "Configuración",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+  }
 ]
 
 export function DashboardNav() {

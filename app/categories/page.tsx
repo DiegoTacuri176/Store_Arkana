@@ -124,7 +124,7 @@ export default function CategoriesPage() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
             <div className="flex flex-col justify-center">
               <h1 className="text-2xl font-bold md:text-4xl leading-tight text-balance">
-                Oferta por tiempo limitado: ¡Ahorra en Herramientas Creativas!
+                Explora las categorías y descubre proyectos únicos creados por estudiantes.
               </h1>
             </div>
 

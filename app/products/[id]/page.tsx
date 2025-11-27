@@ -15,6 +15,9 @@ import { CommentForm } from "@/components/comment-form"
 import { CommentList } from "@/components/comment-list"
 import { Star, Eye, Heart, Share2 } from "lucide-react"
 import { AddToCartButton } from "@/components/add-to-cart-button"
+// IMPORTS ADICIONALES PARA LA NUEVA IMPLEMENTACIÓN
+import { Toaster } from "react-hot-toast"
+import { ProductActions } from "@/components/products-actions" 
 
 interface ProductPageProps {
   params: Promise<{ id: string }>
@@ -24,13 +27,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const { id } = await params
   const API_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
-  // 1. INICIO: Disparamos las peticiones independientes en PARALELO.
-  // No usamos await aquí todavía, solo iniciamos las promesas.
   const productPromise = fetch(`${API_URL}/api/products/${id}`, { cache: "no-store" })
   const reviewsPromise = fetch(`${API_URL}/api/reviews?productId=${id}`, { cache: "no-store" })
   const commentsPromise = fetch(`${API_URL}/api/comments?productId=${id}`, { cache: "no-store" })
 
-  // 2. Esperamos al producto primero porque es crítico y necesario para 'related products'
   const productRes = await productPromise
 
   if (!productRes.ok) {
@@ -189,15 +189,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions: AÑADIDO ProductActions Component */}
             <div className="flex gap-3">
               <AddToCartButton product={product} className="flex-1" />
-              <Button variant="outline" size="icon">
-                <Heart className="h-5 w-5" />
-              </Button>
-              <Button variant="outline" size="icon">
-                <Share2 className="h-5 w-5" />
-              </Button>
+              {/* Componente que maneja el estado de Favorito y la acción de Compartir */}
+              <ProductActions productId={product.id} isFavoritedInitially={false} />
             </div>
 
             {/* Seller Info */}
@@ -300,6 +296,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
         )}
       </div>
+      
+      {/* Toaster de react-hot-toast para notificaciones */}
+      <Toaster position="top-right" reverseOrder={false} />
     </div>
   )
 }

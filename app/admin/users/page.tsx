@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container py-8">
+      <div className="container py-8 px-12">
         <div className="mb-8">
           <h1 className="font-heading text-3xl font-bold">Gestión de Usuarios</h1>
           <p className="text-muted-foreground">Administra todos los usuarios de la plataforma</p>
@@ -134,7 +134,7 @@ export default function AdminUsersPage() {
           <AdminNav />
 
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="pr-8">
               <Table>
                 <TableHeader>
                   <TableRow>

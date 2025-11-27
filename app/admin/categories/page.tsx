@@ -25,7 +25,7 @@ export default async function AdminCategoriesPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container py-8">
+      <div className="container py-8 px-12">
         <div className="mb-8">
           <h1 className="font-heading text-3xl font-bold">Gestión de Categorías</h1>
           <p className="text-muted-foreground">Administra las categorías de trabajos</p>

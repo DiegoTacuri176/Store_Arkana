@@ -30,12 +30,7 @@ const navItems = [
     title: "Categorías",
     href: "/admin/categories",
     icon: FolderTree,
-  },
-  {
-    title: "Configuración",
-    href: "/admin/settings",
-    icon: Settings,
-  },
+  }
 ]
 
 export function AdminNav() {

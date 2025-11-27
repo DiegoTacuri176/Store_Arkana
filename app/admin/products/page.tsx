@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -21,15 +21,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Database } from "@/lib/db";
 import { AuthService } from "@/lib/auth";
 import type { Product } from "@/lib/types";
-import { Eye, CheckCircle, XCircle } from "lucide-react";
+import { Eye, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { getAdminProductsAction } from "@/lib/actions"; 
+
+// Extendemos el tipo para incluir sellerName, ya que el Server Action lo añade
+interface ProductWithSellerName extends Product {
+    sellerName?: string
+}
+
+// Define el tipo para rastrear la acción de carga específica (ID y tipo)
+type ActionLoadingState = {
+    id: string; 
+    type: 'approve' | 'reject';
+} | null;
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithSellerName[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<ActionLoadingState>(null); // Estado para rastrear producto y tipo de acción
   const router = useRouter();
-  const notify = () => toast("Here is your toast.");
 
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Modificamos loadProducts para usar el Server Action
+  const loadProducts = useCallback(async () => {
+    try {
+      // 1. Llamar al Server Action para obtener datos serializados
+      const productsData = await getAdminProductsAction();
+      setProducts(productsData);
+    } catch (error) {
+      console.error("Error cargando productos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
   useEffect(() => {
     const user = AuthService.getCurrentUser();
 
@@ -37,66 +64,66 @@ export default function AdminProductsPage() {
       router.push("/login");
       return;
     }
-
-    // Usamos el objeto toast correctamente
-
+    
+    // Al inicio, cargamos los productos usando el nuevo método
     loadProducts();
-  }, []);
+  }, [router, loadProducts]);
+  
+  // Función centralizada para actualizar el estado del producto
+  const updateProductStatus = async (productId: string, status: "approved" | "rejected", successMessage: string) => {
+    // 1. Iniciar la acción de carga específica
+    setActionLoading({ id: productId, type: status === 'approved' ? 'approve' : 'reject' });
 
-  const loadProducts = async () => {
     try {
-      const allProducts = await Database.getProducts();
-
-      // Añadiendo nombre del vendedor
-      const productsWithSellers = await Promise.all(
-        allProducts.map(async (product) => {
-          // Tu corrección previa de seller_id se mantiene aquí
-          const seller = await Database.getUser(product.seller_id);
-          console.log("Productos con vendedores cargados:", product.created_at);
-
-          return {
-            ...product,
-            sellerName: seller?.name || "Desconocido",
-          };
-        })
-      );
-
-      setProducts(productsWithSellers);
+      // 2. Actualizar en la DB (Usamos el API Route para el update)
+      const res = await fetch(`/api/products/${productId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+      });
+      
+      if (!res.ok) throw new Error("Error al actualizar estado del producto");
+      
+      // 3. Mostrar la notificación
+      if (status === 'approved') {
+          toast.success(successMessage);
+      } else {
+          toast.error(successMessage);
+      }
+      
+      // 4. Esperar a que el toast sea visible (ej. 500ms)
+      await sleep(500); 
+      
+      // 5. Recargar productos y actualizar la UI
+      await loadProducts();
+      
     } catch (error) {
-      console.error("Error cargando productos:", error);
+      console.error(`Error al actualizar producto ${productId}:`, error);
+      toast.error("Error al procesar la acción. Intenta de nuevo.");
     } finally {
-      setLoading(false);
+      setActionLoading(null); // 6. Finalizar la acción de carga
     }
   };
-  
-  // crear una function que redirija a /admin/
-  
-  
-  
+
   const handleApprove = async (productId: string) => {
-    toast.success('Aprobado!')
-    await Database.updateProduct(productId, { status: "approved" });
-    loadProducts();
-    // esperar a que el toast se muestre antes de recargar
+    await updateProductStatus(productId, "approved", 'Trabajo Aprobado. ¡Notificado al vendedor!');
   };
   
   const handleReject = async (productId: string) => {
-    toast.error('Rechazado!')
-    await Database.updateProduct(productId, { status: "rejected" });
-    loadProducts();
-    // esperar a que el toast se muestre antes de redendigir a dashboard
+    await updateProductStatus(productId, "rejected", 'Trabajo Rechazado. ¡Notificado al vendedor!');
   };
-  const handleGoBack = () => {
-    router.push("/admin");
-  };
+  
   
   const pendingProducts = products.filter((p) => p.status === "pending");
   const approvedProducts = products.filter((p) => p.status === "approved");
   const rejectedProducts = products.filter((p) => p.status === "rejected");
 
-  const ProductTable = ({ products }: { products: Product[] }) => (
+  const ProductTable = ({ products }: { products: ProductWithSellerName[] }) => {
+    
+    const isProcessingAny = !!actionLoading; 
+
+    return (
     <Table>
-      {/* 3. IMPORTANTE: Quité el <Toaster /> de aquí porque rompía la tabla */}
       <TableHeader>
         <TableRow>
           <TableHead className="w-[80px]">Imagen</TableHead>
@@ -109,74 +136,101 @@ export default function AdminProductsPage() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {products.map((product) => (
-          <TableRow key={product.id}>
-            <TableCell>
-              <div className="relative h-12 w-12 overflow-hidden rounded-md">
-                <Image
-                  src={product.images?.[0] || "/placeholder.svg"}
-                  alt={product.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </TableCell>
-            <TableCell className="font-medium">{product.title}</TableCell>
-            <TableCell>{product.sellerName ?? "Desconocido"}</TableCell>
-            <TableCell>${product.price}</TableCell>
-            <TableCell>
-              {product.status === "approved" && (
-                <Badge className="bg-green-500">Aprobado</Badge>
-              )}
-              {product.status === "pending" && (
-                <Badge variant="secondary">Pendiente</Badge>
-              )}
-              {product.status === "rejected" && (
-                <Badge variant="destructive">Rechazado</Badge>
-              )}
-            </TableCell>
-            <TableCell>
-              {product.created_at
-                ? new Date(product.created_at).toLocaleDateString()
-                : "-"}
-            </TableCell>
-            <TableCell>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/products/${product.id}`}>
-                    <Eye className="h-4 w-4" />
-                  </Link>
-                </Button>
-                {product.status === "pending" && (
-                  <>  
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleApprove(product.id)}
-                    >
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+        {products.map((product) => {
+            // Lógica para determinar el estado de carga y acción
+            const isProcessingThisItem = actionLoading?.id === product.id;
+            const isApproving = isProcessingThisItem && actionLoading?.type === 'approve';
+            const isRejecting = isProcessingThisItem && actionLoading?.type === 'reject';
+
+            return (
+              <TableRow key={product.id}>
+                <TableCell>
+                  <div className="relative h-12 w-12 overflow-hidden rounded-md">
+                    <Image
+                      src={product.images?.[0] || "/placeholder.svg"}
+                      alt={product.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">{product.title}</TableCell>
+                <TableCell>{product.sellerName ?? "Desconocido"}</TableCell>
+                <TableCell>${product.price}</TableCell>
+                <TableCell>
+                  {product.status === "approved" && (
+                    <Badge className="bg-green-500">Aprobado</Badge>
+                  )}
+                  {product.status === "pending" && (
+                    <Badge variant="secondary">Pendiente</Badge>
+                  )}
+                  {product.status === "rejected" && (
+                    <Badge variant="destructive">Rechazado</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {product.created_at
+                    ? new Date(product.created_at).toLocaleDateString()
+                    : "-"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    {/* Botón Ver - Deshabilitado si cualquier acción está en curso */}
+                    <Button variant="outline" size="sm" asChild disabled={isProcessingAny}>
+                      <Link href={`/products/${product.id}`} target="_blank">
+                        <Eye className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleReject(product.id)}
-                    >
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+                    {product.status === "pending" && (
+                      <>  
+                        {/* Botón APROBAR */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleApprove(product.id)}
+                          // Deshabilita solo si este producto está siendo procesado
+                          disabled={isProcessingThisItem} 
+                          className="group/btn"
+                        >
+                          {isApproving ? ( // Muestra spinner SÓLO si es la acción de aprobar para este ID
+                            <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-green-500 group-hover/btn:text-green-600 transition-colors" />
+                          )}
+                        </Button>
+                        {/* Botón RECHAZAR */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReject(product.id)}
+                           // Deshabilita solo si este producto está siendo procesado
+                          disabled={isProcessingThisItem} 
+                          className="group/btn"
+                        >
+                           {isRejecting ? ( // Muestra spinner SÓLO si es la acción de rechazar para este ID
+                            <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500 group-hover/btn:text-red-600 transition-colors" />
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+        })}
       </TableBody>
     </Table>
   );
+}
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-lg text-muted-foreground">Cargando...</p>
+      // Corrección de centrado del cargador
+      <div className="flex flex-col items-center justify-center h-screen w-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-lg text-muted-foreground mt-4">Cargando...</p>
       </div>
     );
   }
@@ -219,9 +273,7 @@ export default function AdminProductsPage() {
                   ) : (
                     <div className="py-12 text-center text-muted-foreground">
                       No hay trabajos pendientes de revisión
-                      <button onClick={handleGoBack}>
-                        click here
-                      </button>
+                      
                     </div>
                   )}
                 </TabsContent>
@@ -232,7 +284,6 @@ export default function AdminProductsPage() {
                   ) : (
                     <div className="py-12 text-center text-muted-foreground">
                       No hay trabajos aprobados
-                      
                     </div>
                   )}
                 </TabsContent>
@@ -251,7 +302,7 @@ export default function AdminProductsPage() {
           </Card>
         </div>
       </div>
-      {/* 4. IMPORTANTE: Coloca el Toaster al final del contenedor principal */}
+      
       <div>
         <Toaster position="top-right" reverseOrder={false} />
       </div>
