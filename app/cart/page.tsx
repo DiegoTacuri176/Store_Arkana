@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { loadStripe, Stripe } from '@stripe/stripe-js'; 
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,12 +12,18 @@ import { Separator } from "@/components/ui/separator"
 import { CartService } from "@/lib/cart"
 import { AuthService } from "@/lib/auth"
 import type { CartItem } from "@/lib/types"
-import { Trash2, ShoppingBag, ArrowRight, Minus, Plus } from "lucide-react"
+import { Trash2, ShoppingBag, ArrowRight, Minus, Plus, Loader2 } from "lucide-react"
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+);
+
 
 export default function CartPage() {
   const router = useRouter()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) 
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false) 
 
   useEffect(() => {
     loadCart()
@@ -47,13 +54,50 @@ export default function CartPage() {
   const tax = subtotal * 0.1 // 10% tax
   const total = subtotal + tax
 
-  const handleCheckout = () => {
+  // Lógica de Checkout con Stripe (Corregida para usar Redirección de URL)
+  const handleCheckout = async () => {
     const user = AuthService.getCurrentUser()
+    
+    // 1. Verificar autenticación
     if (!user) {
-      router.push("/login?redirect=/checkout")
+      router.push("/login?redirect=/cart")
       return
     }
-    router.push("/checkout")
+    
+    setIsCheckoutLoading(true)
+    
+    try {
+      
+      const res = await fetch("/api/checkout_session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+              cartItems, 
+              userId: user.id 
+          }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+          throw new Error(data.error || "Error al crear sesión de pago");
+      }
+      
+      if (data.url && typeof window !== 'undefined') {
+        window.location.href = data.url; 
+      } else {
+        throw new Error("No se recibió una URL de sesión de Stripe válida.");
+      }
+
+    } catch (error: any) {
+      console.error("[v0] Error creating checkout session:", error)
+      
+      const errorMessage = error.message || 'Error de conexión';
+      alert(`Error al iniciar el pago: ${errorMessage}. Por favor, intenta de nuevo.`)
+      
+    } finally {
+      setIsCheckoutLoading(false);
+    }
   }
 
   if (loading) {
@@ -61,7 +105,8 @@ export default function CartPage() {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container py-16 text-center">
-          <p>Cargando carrito...</p>
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4">Cargando carrito...</p>
         </div>
       </div>
     )
@@ -104,11 +149,13 @@ export default function CartPage() {
                     <div key={item.product.id}>
                       <div className="flex gap-4">
                         <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border">
+                          {/* Nota: Usamos Image de next/image aquí */}
                           <Image
                             src={item.product.images[0] || "/placeholder.svg"}
                             alt={item.product.title}
                             fill
                             className="object-cover"
+                            unoptimized 
                           />
                         </div>
 
@@ -129,6 +176,7 @@ export default function CartPage() {
                                 size="icon"
                                 className="h-8 w-8 bg-transparent"
                                 onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
+                                disabled={isCheckoutLoading}
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
@@ -138,6 +186,7 @@ export default function CartPage() {
                                 size="icon"
                                 className="h-8 w-8 bg-transparent"
                                 onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
+                                disabled={isCheckoutLoading}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -148,6 +197,7 @@ export default function CartPage() {
                               size="icon"
                               className="h-8 w-8 text-destructive"
                               onClick={() => handleRemove(item.product.id)}
+                              disabled={isCheckoutLoading}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -187,9 +237,23 @@ export default function CartPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex-col gap-2">
-                  <Button className="w-full" size="lg" onClick={handleCheckout}>
-                    Proceder al Pago
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleCheckout} 
+                    disabled={isCheckoutLoading}
+                  >
+                    {isCheckoutLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Redirigiendo...
+                      </>
+                    ) : (
+                      <>
+                        Proceder al Pago
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
                   </Button>
                   <Button variant="outline" className="w-full bg-transparent" asChild>
                     <Link href="/explore">Continuar Comprando</Link>

@@ -18,7 +18,7 @@ export default async function ExplorePage() {
     Database.getCategories(), // Devuelve Promise<Category[]>
   ])
 
-  const uniqueSellerIds = Array.from(new Set(products.map(p => p.sellerId).filter(id => id)))
+  const uniqueSellerIds = Array.from(new Set(products.map(p => p.seller_id).filter(id => id)))
 
   const sellerPromises = uniqueSellerIds.map(id => Database.getUser(id))
   const sellers = await Promise.all(sellerPromises)
@@ -43,20 +43,6 @@ export default async function ExplorePage() {
 
         {/* ====================== FILTROS ====================== */}
         <div className="mb-8 flex flex-wrap items-center gap-4">
-          {/* 🔹 Filtro por categoría */}
-          <Select defaultValue="all">
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.icon ? `${cat.icon} ` : ""}{cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
           {/* 🔹 Filtro de orden */}
           <Select defaultValue="recent">
@@ -84,7 +70,7 @@ export default async function ExplorePage() {
               <ProductCard
                 key={product.id}
                 product={product}
-                seller={sellersMap.get(product.sellerId)}
+                seller={sellersMap.get(product.seller_id)}
               />
             ))
           ) : (

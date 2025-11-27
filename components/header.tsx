@@ -18,7 +18,7 @@ import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function Header() {
-  // Inicializamos con la cookie para que no haya "flickeo", pero luego actualizamos
+
   const [user, setUser] = useState(AuthService.getCurrentUser())
   const [cartCount, setCartCount] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -73,8 +73,15 @@ export function Header() {
     }
   }, [user])
 
+  // Lógica de Logout - Modificación Clave
   const handleLogout = () => {
+    // 1. Limpiar el carrito de la sesión anterior (solución al problema)
+    CartService.clearCart() 
+    
+    // 2. Ejecutar el logout de autenticación (elimina la cookie de usuario)
     AuthService.logout()
+    
+    // 3. Reiniciar el estado local y redirigir
     setUser(null)
     window.location.href = "/"
   }

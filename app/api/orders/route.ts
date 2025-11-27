@@ -1,7 +1,5 @@
-// app/api/orders/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/server/mysql"
-import { v4 as uuidv4 } from "uuid"
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,66 +70,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { buyerId, items, total, paymentMethod, shippingAddress } = body
+// --------------------------------------------------------
+// ELIMINACIÓN DE LA FUNCIÓN POST ANTIGUA:
+// Antes, la función POST creaba la orden directamente aquí.
+// Ahora, el cliente llama a /api/checkout_session (nuevo archivo)
+// y el Webhook de Stripe crea la orden en la base de datos.
+// Por lo tanto, eliminamos el método POST de esta API.
+// --------------------------------------------------------
 
-    if (!buyerId || !items?.length || !total) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos (buyerId, items, total)" },
-        { status: 400 }
-      )
-    }
+// Se eliminó la función export async function POST(request: NextRequest) {}
+// La API de órdenes ahora solo soporta GET.
 
-    const orderId = uuidv4()
-
-    await query(
-      `INSERT INTO orders (id, buyer_id, total, payment_method, shipping_address, status)
-       VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [orderId, buyerId, total, paymentMethod, JSON.stringify(shippingAddress)]
-    )
-
-    for (const item of items) {
-      const itemId = uuidv4()
-      await query(
-        `INSERT INTO order_items (id, order_id, product_id, seller_id, quantity, price)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [itemId, orderId, item.productId, item.sellerId, item.quantity, item.price]
-      )
-    }
-
-    const results = await query("SELECT * FROM orders WHERE id = ?", [orderId])
-    const newOrder: any = results[0]
-
-    const orderItems = await query(
-      `SELECT oi.*, 
-              p.title AS product_title, 
-              p.images AS product_images, 
-              u.name AS seller_name
-       FROM order_items oi
-       LEFT JOIN products p ON oi.product_id = p.id
-       LEFT JOIN users u ON oi.seller_id = u.id
-       WHERE oi.order_id = ?`,
-      [orderId]
-    )
-
-    newOrder.items = orderItems
-
-    if (typeof newOrder.shipping_address === "string") {
-      try {
-        newOrder.shipping_address = JSON.parse(newOrder.shipping_address)
-      } catch {
-        
-      }
-    }
-
-    return NextResponse.json(newOrder, { status: 201 })
-  } catch (error: any) {
-    console.error("❌ Error al crear pedido:", error)
-    return NextResponse.json(
-      { error: "Error interno al crear pedido" },
-      { status: 500 }
-    )
-  }
-}
+// El archivo termina aquí, sin el método POST.

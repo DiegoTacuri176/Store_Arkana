@@ -126,9 +126,6 @@ export default function CategoriesPage() {
               <h1 className="text-2xl font-bold md:text-4xl leading-tight text-balance">
                 Oferta por tiempo limitado: ¡Ahorra en Herramientas Creativas!
               </h1>
-              <div className="mt-6">
-                <Button className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">Comprar ahora</Button>
-              </div>
             </div>
 
             <div className="flex justify-center items-center ">
@@ -272,11 +269,11 @@ export default function CategoriesPage() {
                    product={{
                        ...product,
                        images: product.images,
-                       sellerId: product.sellerId,
+                       seller_id: product.seller_id,
                        // El resto de campos de Product vienen en el spread
                    }}
                    seller={{
-                       id: product.sellerId,
+                       id: product.seller_id,
                        name: product.sellerName,
                        avatar: product.seller_avatar // Pasamos el avatar del seller para la tarjeta
                    }}
