@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       line_items,
       mode: "payment",
-      // success_url: `${origin}/orders/${newOrder.id}?success=true`,
-      success_url: `${origin}/dashboard/orders/${newOrder.id}?success=true`,
+      
+      success_url: `${origin}/orders/${newOrder.id}?success=true`, 
       cancel_url: `${origin}/cart?canceled=true`,
       customer_email: user.email,
       metadata: {
@@ -64,6 +64,8 @@ export async function POST(req: NextRequest) {
         userId: user.id,
       },
     })
+
+    
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
