@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { loadStripe, Stripe } from '@stripe/stripe-js'; 
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,11 +12,6 @@ import { CartService } from "@/lib/cart"
 import { AuthService } from "@/lib/auth"
 import type { CartItem } from "@/lib/types"
 import { Trash2, ShoppingBag, ArrowRight, Minus, Plus, Loader2 } from "lucide-react"
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
-
 
 export default function CartPage() {
   const router = useRouter()
@@ -54,11 +48,9 @@ export default function CartPage() {
   const tax = subtotal * 0.1 // 10% tax
   const total = subtotal + tax
 
-  // Lógica de Checkout con Stripe (Corregida para usar Redirección de URL)
   const handleCheckout = async () => {
     const user = AuthService.getCurrentUser()
     
-    // 1. Verificar autenticación
     if (!user) {
       router.push("/login?redirect=/cart")
       return
@@ -67,13 +59,19 @@ export default function CartPage() {
     setIsCheckoutLoading(true)
     
     try {
-      
+      const items = cartItems.map((item) => ({
+        id: item.product.id,
+        title: item.product.title,
+        price: item.product.price,
+        quantity: item.quantity,
+        images: item.product.images
+      }))
+
       const res = await fetch("/api/checkout_session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
-              cartItems, 
-              userId: user.id 
+              items,
           }),
       });
       
@@ -83,18 +81,16 @@ export default function CartPage() {
           throw new Error(data.error || "Error al crear sesión de pago");
       }
       
-      if (data.url && typeof window !== 'undefined') {
+      if (data.url) {
         window.location.href = data.url; 
       } else {
         throw new Error("No se recibió una URL de sesión de Stripe válida.");
       }
 
     } catch (error: any) {
-      console.error("[v0] Error creating checkout session:", error)
-      
+      console.error("[Cart] Error creating checkout session:", error)
       const errorMessage = error.message || 'Error de conexión';
-      alert(`Error al iniciar el pago: ${errorMessage}. Por favor, intenta de nuevo.`)
-      
+      alert(`Error al iniciar el pago: ${errorMessage}`)
     } finally {
       setIsCheckoutLoading(false);
     }
@@ -149,7 +145,6 @@ export default function CartPage() {
                     <div key={item.product.id}>
                       <div className="flex gap-4">
                         <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border">
-                          {/* Nota: Usamos Image de next/image aquí */}
                           <Image
                             src={item.product.images[0] || "/placeholder.svg"}
                             alt={item.product.title}

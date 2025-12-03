@@ -1,70 +1,76 @@
-import { type NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { NextResponse, type NextRequest } from "next/server"
+import { getServerAuth } from "@/lib/auth"
+import { Database } from "@/lib/db"
+import Stripe from "stripe"
 
-// Inicializa el cliente de Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-11-17.clover", // Asegurarse de usar la versión correcta
-});
+// Inicializar Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-11-17.clover", 
+})
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { cartItems, userId } = await request.json();
-
-    if (!cartItems || cartItems.length === 0 || !userId) {
-      return NextResponse.json({ error: "Faltan datos del carrito o usuario" }, { status: 400 });
+    const user = await getServerAuth()
+    
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // --- 1. CREAR UNA VERSIÓN LIGERA DEL CARRITO PARA METADATOS ---
-    // Esto resuelve el error 500, ya que Stripe limita los metadatos a 500 caracteres.
-    const lightCart = cartItems.map((item: any) => ({
-      productId: item.product.id,
-      sellerId: item.product.sellerId, // Necesario para crear OrderItem en el Webhook
-      quantity: item.quantity,
-      price: item.product.price, // Guardamos el precio validado para asegurar la orden
-    }));
-    // -----------------------------------------------------------------
+    const body = await req.json()
+    const { items } = body
 
-    // 2. Mapear items del carrito a Line Items de Stripe (aquí sí usamos datos completos para la UI de Stripe)
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cartItems.map((item: any) => {
-      // El precio debe ser en la unidad más pequeña (ej. centavos/cêntimos)
-      const priceInCents = Math.round(item.product.price * 100);
+    if (!items || items.length === 0) {
+      return NextResponse.json({ error: "No hay items en el carrito" }, { status: 400 })
+    }
 
-      return {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.product.title,
-            // Las imágenes pueden tener una URL larga, pero Stripe las maneja en los Line Items
-            images: [item.product.images[0] || "https://placehold.co/100x100/A0A0A0/FFFFFF?text=Producto"],
-            description: item.product.description, // Descripción completa solo en Line Item, no en Metadata
-          },
-          unit_amount: priceInCents,
-        },
-        quantity: item.quantity,
-      };
-    });
+    const total = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
     
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const newOrder = await Database.createOrder({
+        buyerId: user.id,
+        items: items.map((item: any) => ({
+            productId: item.id,
+            quantity: item.quantity,
+            price: item.price
+        })),
+        total: total,
+        status: 'pending'
+    })
 
-    // 3. Crear la sesión de Checkout
+    const line_items = items.map((item: any) => ({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: item.title,
+  
+          images: item.images && item.images.length > 0 ? [item.images[0]] : [],
+        },
+        unit_amount: Math.round(item.price * 100),
+      },
+      quantity: item.quantity,
+    }))
+
+    const origin = req.headers.get("origin") || "http://localhost:3000"
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      line_items,
       mode: "payment",
-      line_items: lineItems,
-      success_url: `${baseUrl}/orders/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/cart?status=cancel`,
-      
-      // 4. GUARDAR SOLO EL CARRITO LIGERO EN METADATOS
+      // success_url: `${origin}/orders/${newOrder.id}?success=true`,
+      success_url: `${origin}/dashboard/orders/${newOrder.id}?success=true`,
+      cancel_url: `${origin}/cart?canceled=true`,
+      customer_email: user.email,
       metadata: {
-        userId: userId,
-        // Usamos el carrito ligero para asegurar que no exceda el límite de 500 caracteres
-        cartData: JSON.stringify(lightCart), 
+        orderId: newOrder.id,
+        userId: user.id,
       },
-    });
+    })
 
-    return NextResponse.json({ sessionId: session.id, url: session.url });
-  } catch (error: any) {
-    console.error("❌ Error creating Stripe Checkout Session:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ url: session.url })
+  } catch (error) {
+    console.error("Error creating checkout session:", error)
+    return NextResponse.json(
+      { error: "Error interno al crear la sesión de pago" },
+      { status: 500 }
+    )
   }
 }

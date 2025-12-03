@@ -11,6 +11,8 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
+  console.log(user)
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -22,7 +24,7 @@ export default async function ProfilePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <DashboardNav />
+          <DashboardNav userRole={user.role} />
 
           <div className="max-w-2xl">
             <ProfileForm user={user} />

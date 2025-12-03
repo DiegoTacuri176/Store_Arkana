@@ -28,12 +28,27 @@ const navItems = [
   }
 ]
 
-export function DashboardNav() {
+// Definimos la interfaz para recibir el rol
+interface DashboardNavProps {
+  userRole?: string // puede ser "buyer", "seller" o undefined
+}
+
+export function DashboardNav({ userRole }: DashboardNavProps) {
   const pathname = usePathname()
+
+  // FILTRO: Si el usuario es "buyer", ocultamos "Resumen" y "Mis Trabajos"
+  const filteredNavItems = navItems.filter((item) => {
+    if (userRole === "buyer") {
+      // Retornamos FALSE para ocultar estos items
+      return item.title !== "Resumen" && item.title !== "Mis Trabajos"
+    }
+    // Si no es buyer (es seller o admin), mostramos todo (TRUE)
+    return true
+  })
 
   return (
     <nav className="space-y-1">
-      {navItems.map((item) => {
+      {filteredNavItems.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href
 

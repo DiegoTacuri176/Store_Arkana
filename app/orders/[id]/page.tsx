@@ -13,9 +13,11 @@ interface OrderPageProps {
 
 export default async function OrderPage({ params }: OrderPageProps) {
   
+  // Esperamos a que los params se resuelvan (Requerido en Next.js 15)
   const { id } = await params;
   const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+  // Obtenemos los pedidos del comprador
   const orderRes = await fetch(`${apiUrl}/api/orders?buyerId=${id}`, {
     cache: "no-store",
   });
@@ -25,24 +27,26 @@ export default async function OrderPage({ params }: OrderPageProps) {
   }
 
   const orders = await orderRes.json()
+  // Buscamos el pedido específico por ID
   const order = orders.find((o: any) => o.id === id) || orders[0]
 
   if (!order) {
     notFound()
   }
 
-  const shippingAddress =
-    typeof order.shipping_address === "string"
-      ? JSON.parse(order.shipping_address)
-      : order.shipping_address
-
+  // --- SOLUCIÓN ERROR TOFIXED ---
+  // Convertimos los valores a Number() explícitamente.
+  // MySQL devuelve los tipos DECIMAL como strings para mantener precisión,
+  // por lo que .toFixed() falla si no convertimos primero.
+  
   const subtotal =
     order.items?.reduce(
-      (sum: number, item: any) => sum + item.price * item.quantity,
+      (sum: number, item: any) => sum + Number(item.price) * Number(item.quantity),
       0,
-    ) || order.total
+    ) || Number(order.total)
+    
   const tax = subtotal * 0.1
-  const total = order.total
+  const total = Number(order.total)
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,7 +54,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
       <div className="container py-8">
         <div className="mx-auto max-w-3xl">
-          {/* ✅ Mensaje de éxito */}
+          {/* Tarjeta de Éxito / Estado */}
           <Card className="mb-8 border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
             <CardContent className="flex flex-col items-center py-12 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 text-white">
@@ -77,7 +81,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
             </CardContent>
           </Card>
 
-          {/* ✅ Detalles del pedido */}
+          {/* Detalles del Pedido */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -93,6 +97,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
                       : "bg-yellow-500"
                   }
                 >
+                  {/* Mapeo de estados para mostrar texto amigable */}
                   {order.status === "completed"
                     ? "Completado"
                     : order.status === "processing"
@@ -110,7 +115,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {/* 🛒 Artículos */}
+              {/* Lista de Artículos */}
               <div>
                 <h3 className="mb-4 font-semibold">Artículos</h3>
                 <div className="space-y-4">
@@ -130,7 +135,8 @@ export default async function OrderPage({ params }: OrderPageProps) {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-medium">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          {/* Calculamos el total por item asegurando conversión a número */}
+                          ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
                         </span>
                         <Button variant="outline" size="sm">
                           <Download className="mr-2 h-4 w-4" />
@@ -144,7 +150,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
               <Separator />
 
-              {/* 💵 Resumen */}
+              {/* Resumen de Costos */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
@@ -163,27 +169,9 @@ export default async function OrderPage({ params }: OrderPageProps) {
                 </div>
               </div>
 
-              {shippingAddress && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="mb-2 font-semibold">Dirección de Envío</h3>
-                    <div className="text-sm text-muted-foreground">
-                      <p>
-                        {shippingAddress.firstName} {shippingAddress.lastName}
-                      </p>
-                      <p>{shippingAddress.address}</p>
-                      <p>
-                        {shippingAddress.city}, {shippingAddress.postalCode}
-                      </p>
-                      <p>{shippingAddress.country}</p>
-                    </div>
-                  </div>
-                </>
-              )}
-
               <Separator />
 
+              {/* Información adicional */}
               <div className="rounded-lg bg-muted p-4">
                 <h4 className="mb-2 font-semibold">Información Importante</h4>
                 <ul className="space-y-1 text-sm text-muted-foreground">

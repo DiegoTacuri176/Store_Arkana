@@ -38,7 +38,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     updatedAt: new Date(productData.updated_at),
   }
 
-  if (user.role !== 'admin' && product.sellerId !== user.id) {
+  if (user.role !== 'admin' && product.seller_id !== user.id) {
     redirect("/dashboard/products")
   }
 
@@ -54,7 +54,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <DashboardNav />
+           <DashboardNav userRole={user.role} />
 
           <div className="max-w-3xl">
             <ProductForm product={product} />

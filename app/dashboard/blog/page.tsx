@@ -43,7 +43,7 @@ export default async function DashboardBlogPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <DashboardNav />
+           <DashboardNav userRole={user.role} />
 
           <Card>
             <CardHeader>

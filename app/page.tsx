@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Sparkles, TrendingUp, Shield } from "lucide-react"
 import Link from "next/link"
 import { SeccionPageLayout } from "@/components/Seccion-Page-Layout"
+import { getServerAuth } from "@/lib/auth"
 
 export default async function HomePage() {
   const API_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
@@ -16,7 +17,8 @@ export default async function HomePage() {
     fetch(`${API_URL}/api/products?status=approved`, { cache: "no-store" }),
     fetch(`${API_URL}/api/categories`, { cache: "no-store" }),
   ])
-  
+  const user = await getServerAuth()
+
   const featuredProducts = featuredProductsRes.ok ? await featuredProductsRes.json() : []
   const allProducts = allProductsRes.ok ? await allProductsRes.json() : []
   const categoriesData = categoriesRes.ok ? await categoriesRes.json() : []
@@ -49,9 +51,14 @@ export default async function HomePage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
+              {
+                user!.role !== "buyer" && (
+
               <Button size="lg" variant="outline" asChild>
                 <Link href="/dashboard/products/new">Vender tu Trabajo</Link>
               </Button>
+                )
+              }
             </div>
 
             {/* Stats */}

@@ -122,7 +122,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <DashboardNav />
+           <DashboardNav userRole={user.role} />
 
           <Card>
             {/* CORRECCIÓN: Si hay productos, el contenido tiene padding-0. Si no hay, el div interno 

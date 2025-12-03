@@ -6,7 +6,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getServerAuth } from "@/lib/auth"
-import { ShoppingBag, Eye } from "lucide-react"
+import { ShoppingBag, Eye, ImageIcon } from "lucide-react"
+
+// 1. INTERFACES ACTUALIZADAS (Según tus datos reales)
+interface OrderItem {
+  id: string
+  product_id: string
+  seller_id: string
+  quantity: number
+  price: string // Viene como string '4.99'
+  product_title: string // CAMBIO IMPORTANTE: antes era 'name'
+  product_images: string[] // Array de URLs
+  seller_name: string
+}
+
+interface Order {
+  id: string
+  buyer_id: string
+  total: string // Viene como string '4.99'
+  status: string
+  created_at: string
+  buyer_name: string
+  items: OrderItem[]
+  // Campos opcionales
+  seller_name?: string 
+}
 
 export default async function OrdersPage() {
   const user = await getServerAuth()
@@ -16,13 +40,15 @@ export default async function OrdersPage() {
   }
 
   const ordersRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/orders?${user.role === "seller" ? `sellerId=${user.id}` : `buyerId=${user.id}`}`,
+    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/orders?${
+      user.role === "seller" ? `sellerId=${user.id}` : `buyerId=${user.id}`
+    }`,
     {
       cache: "no-store",
     },
   )
 
-  const orders = ordersRes.ok ? await ordersRes.json() : []
+  const orders: Order[] = ordersRes.ok ? await ordersRes.json() : []
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,76 +60,119 @@ export default async function OrdersPage() {
             {user.role === "seller" ? "Pedidos Recibidos" : "Mis Pedidos"}
           </h1>
           <p className="text-muted-foreground">
-            {user.role === "seller" ? "Gestiona los pedidos de tus trabajos" : "Revisa el estado de tus compras"}
+            {user.role === "seller"
+              ? "Gestiona los pedidos de tus trabajos"
+              : "Revisa el estado de tus compras"}
           </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <DashboardNav />
+          <DashboardNav userRole={user.role} />
 
           <Card>
             <CardHeader>
-              <CardTitle>Pedidos Recientes</CardTitle>
+              <CardTitle>Historial de Pedidos</CardTitle>
             </CardHeader>
             <CardContent>
               {orders.length > 0 ? (
                 <div className="space-y-4">
-                  {orders.map((order: any) => {
+                  {orders.map((order) => {
                     const orderDate = new Date(order.created_at)
+
+                    // Filtrar items: Si soy vendedor, solo veo mis productos. Si soy comprador, veo todo.
                     const displayItems =
                       user.role === "seller"
-                        ? order.items?.filter((item: any) => item.seller_id === user.id) || []
+                        ? order.items?.filter((item) => item.seller_id === user.id) || []
                         : order.items || []
+
+                    // Si no hay items para mostrar (caso raro), saltamos
+                    if (displayItems.length === 0) return null;
+
+                    // Calcular total basado en los items visibles
                     const displayTotal =
                       user.role === "seller"
-                        ? displayItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0)
-                        : order.total
+                        ? displayItems.reduce(
+                            (sum, item) => sum + Number(item.price) * item.quantity,
+                            0
+                          )
+                        : Number(order.total)
+
+                    // Obtenemos la imagen del primer producto para mostrarla de portada
+                    const firstImage = displayItems[0]?.product_images?.[0] || null
 
                     return (
-                      <div key={order.id} className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <p className="font-semibold">Pedido #{order.id.slice(0, 8).toUpperCase()}</p>
+                      <div
+                        key={order.id}
+                        className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-lg border p-4 hover:bg-accent/50 transition-colors"
+                      >
+                        {/* 2. MOSTRAR IMAGEN DEL PRODUCTO */}
+                        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border bg-muted">
+                          {firstImage ? (
+                            <img 
+                              src={firstImage} 
+                              alt="Product thumbnail" 
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-lg">
+                              Pedido #{order.id.slice(0, 8).toUpperCase()}
+                            </p>
                             <Badge
+                              variant={
+                                order.status === "completed" ? "default" : "secondary"
+                              }
                               className={
                                 order.status === "completed"
-                                  ? "bg-green-500"
-                                  : order.status === "processing"
-                                    ? "bg-blue-500"
-                                    : order.status === "cancelled"
-                                      ? "bg-red-500"
-                                      : "bg-yellow-500"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : order.status === "pending"
+                                  ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                                  : ""
                               }
                             >
-                              {order.status === "completed"
-                                ? "Completado"
-                                : order.status === "processing"
-                                  ? "Procesando"
-                                  : order.status === "cancelled"
-                                    ? "Cancelado"
-                                    : "Pendiente"}
+                              {order.status === "pending" ? "Pendiente" : order.status}
                             </Badge>
                           </div>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {orderDate.toLocaleDateString()} • {displayItems.length} artículo(s)
+                          
+                          {/* 3. MOSTRAR TÍTULO CORRECTO */}
+                          <p className="text-sm font-medium text-foreground">
+                            {displayItems[0].product_title}
+                            {displayItems.length > 1 && 
+                              <span className="text-muted-foreground ml-1">
+                                y {displayItems.length - 1} más...
+                              </span>
+                            }
                           </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {user.role === "seller"
-                              ? `Cliente: ${order.buyer_name}`
-                              : `Vendedor: ${order.seller_name || "Varios"}`}
-                          </p>
+
+                          <div className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                            <span>{orderDate.toLocaleDateString()}</span>
+                            <span>•</span>
+                            <span>
+                              {user.role === "seller"
+                                ? `Comprador: ${order.buyer_name}`
+                                : `Vendedor: ${displayItems[0].seller_name}`}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
+
+                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0">
                           <div className="text-right">
-                            <p className="font-heading text-lg font-bold">${displayTotal.toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {user.role === "seller" ? "Tu ganancia" : "Total pagado"}
+                            <p className="text-lg font-bold">
+                              ${displayTotal.toFixed(2)}
                             </p>
                           </div>
                           <Button variant="outline" size="sm" asChild>
+                            {/* Ajusta esta ruta según tu estructura de carpetas */}
                             <Link href={`/orders/${order.id}`}>
                               <Eye className="mr-2 h-4 w-4" />
-                              Ver
+                              Detalles
                             </Link>
                           </Button>
                         </div>
@@ -114,19 +183,14 @@ export default async function OrdersPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <ShoppingBag className="h-16 w-16 text-muted-foreground" />
-                  <h3 className="mt-4 font-heading text-xl font-semibold">
-                    {user.role === "seller" ? "No tienes pedidos aún" : "No has realizado compras aún"}
+                  <h3 className="mt-4 text-xl font-semibold">
+                    {user.role === "seller" ? "Sin pedidos aún" : "No has comprado nada"}
                   </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  <p className="mt-2 text-muted-foreground">
                     {user.role === "seller"
-                      ? "Los pedidos de tus trabajos aparecerán aquí"
-                      : "Explora el marketplace y encuentra trabajos creativos"}
+                      ? "Tus productos aparecerán aquí cuando alguien compre."
+                      : "¡Explora el catálogo y realiza tu primera compra!"}
                   </p>
-                  {user.role !== "seller" && (
-                    <Button className="mt-4" asChild>
-                      <Link href="/explore">Explorar Trabajos</Link>
-                    </Button>
-                  )}
                 </div>
               )}
             </CardContent>

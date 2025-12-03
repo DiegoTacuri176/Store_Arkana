@@ -1,5 +1,5 @@
 import { query, queryOne } from "./server/mysql"
-import type { Product, Category, Review, User, Comment } from "./types"
+import type { Product, Category, Review, User, Comment, Order, OrderItem } from "./types"
 import { v4 as uuidv4 } from "uuid"
 
 export class Database {
@@ -251,5 +251,109 @@ export class Database {
     const sql = "DELETE FROM users WHERE id = ?"
     const result: any = await query(sql, [id])
     return result.affectedRows > 0
+  }
+  
+  // ===========================
+  // ORDERS
+  // ===========================
+  static async createOrder(orderData: {
+    buyerId: string
+    items: { productId: string; quantity: number; price: number }[]
+    total: number
+    status: string
+  }): Promise<Order> {
+    const orderId = uuidv4()
+    
+    const sqlOrder = `
+      INSERT INTO orders (
+        id, buyer_id, total, status, payment_method, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+    `
+    
+    await query(sqlOrder, [
+      orderId,
+      orderData.buyerId,
+      orderData.total,
+      orderData.status || 'pending',
+      'stripe',
+    ])
+
+    // 2. Insertar los items de la orden
+    for (const item of orderData.items) {
+      const itemId = uuidv4()
+      const sqlItem = `
+        INSERT INTO order_items (id, order_id, product_id, seller_id, quantity, price, created_at)
+        SELECT ?, ?, ?, seller_id, ?, ?, NOW()
+        FROM products WHERE id = ?
+      `
+      await query(sqlItem, [
+        itemId, 
+        orderId, 
+        item.productId, 
+        item.quantity, 
+        item.price, 
+        item.productId
+      ])
+    }
+
+    // 3. Devolver la orden creada
+    const newOrder = await this.getOrder(orderId)
+    if (!newOrder) throw new Error("Error al recuperar la orden creada")
+    return newOrder
+  }
+
+  static async getOrder(id: string): Promise<Order | null> {
+    // 1. Obtener datos de la orden
+    const sqlOrder = "SELECT * FROM orders WHERE id = ?"
+    const orderRaw = await queryOne<any>(sqlOrder, [id])
+    
+    if (!orderRaw) return null
+
+    // 2. Obtener items con detalles del producto (título, imagen)
+    const sqlItems = `
+      SELECT 
+        oi.*,
+        p.title,
+        p.images
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?
+    `
+    const itemsRaw = await query<any>(sqlItems, [id])
+
+    // 3. Formatear items
+    const items: any[] = itemsRaw.map(item => ({
+      id: item.product_id, // Usamos product_id como ID para la vista
+      title: item.title,
+      price: Number(item.price),
+      quantity: item.quantity,
+      image: item.images ? (typeof item.images === 'string' ? JSON.parse(item.images)[0] : item.images[0]) : null
+    }))
+
+    // 4. Construir objeto Order completo
+    return {
+      id: orderRaw.id,
+      buyerId: orderRaw.buyer_id,
+      total: Number(orderRaw.total),
+      status: orderRaw.status,
+      createdAt: orderRaw.created_at,
+      updatedAt: orderRaw.updated_at,
+      items: items
+    }
+  }
+
+  static async getOrdersByUser(userId: string): Promise<Order[]> {
+    const sql = "SELECT * FROM orders WHERE buyer_id = ? ORDER BY created_at DESC"
+    const ordersRaw = await query<any>(sql, [userId])
+    
+    return ordersRaw.map(o => ({
+      id: o.id,
+      buyerId: o.buyer_id,
+      total: Number(o.total),
+      status: o.status,
+      createdAt: o.created_at,
+      updatedAt: o.updated_at,
+      items: [] 
+    }))
   }
 }

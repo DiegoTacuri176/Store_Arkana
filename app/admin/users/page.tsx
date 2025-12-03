@@ -10,8 +10,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AuthService } from "@/lib/auth"
-import type { User } from "@/lib/types" 
-import { MoreVertical, Loader2 } from "lucide-react" 
+import type { User } from "@/lib/types"
+import { MoreVertical, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function AdminUsersPage() {
@@ -23,14 +23,13 @@ export default function AdminUsersPage() {
   const loadUsers = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch a la nueva ruta API de gestión de usuarios
-      const res = await fetch("/api/admin/users", { cache: "no-store" }) 
-      
+      const res = await fetch("/api/admin/users", { cache: "no-store" })
+
       if (!res.ok) {
-          if (res.status === 403) router.replace("/login"); 
-          throw new Error(`Error fetching users: ${res.status}`);
+        if (res.status === 403) router.replace("/login")
+        throw new Error(`Error fetching users: ${res.status}`)
       }
-      
+
       const usersData = await res.json()
       setAllUsers(usersData)
 
@@ -42,26 +41,25 @@ export default function AdminUsersPage() {
     }
   }, [router])
 
-
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!window.confirm(`¿Estás seguro de que quieres suspender/eliminar al usuario "${userName}"? Esta acción es irreversible y eliminará todos sus datos.`)) {
       return
     }
 
-    setLoading(true) 
+    setLoading(true)
 
     try {
       const res = await fetch(`/api/admin/users?id=${userId}`, {
         method: 'DELETE',
       })
-      
+
       if (!res.ok) {
         const errorData = await res.json()
         throw new Error(errorData.error || "Error al eliminar usuario")
       }
 
       alert(`Usuario "${userName}" eliminado exitosamente.`)
-      loadUsers() 
+      loadUsers()
 
     } catch (error) {
       console.error("Error deleting user:", error)
@@ -69,7 +67,6 @@ export default function AdminUsersPage() {
       setLoading(false)
     }
   }
-
 
   useEffect(() => {
     const user = AuthService.getCurrentUser()
@@ -81,7 +78,6 @@ export default function AdminUsersPage() {
     setCurrentUser(user)
     loadUsers()
   }, [router, loadUsers])
-  
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -101,13 +97,17 @@ export default function AdminUsersPage() {
     try {
       const parsedDate = new Date(date)
       if (isNaN(parsedDate.getTime())) return "—"
-      return parsedDate.toLocaleDateString()
+      return parsedDate.toLocaleDateString("es-PE", {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
     } catch {
       return "—"
     }
   }
-  
-  if (loading || !currentUser) { 
+
+  if (loading || !currentUser) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -118,7 +118,6 @@ export default function AdminUsersPage() {
       </div>
     )
   }
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,7 +174,7 @@ export default function AdminUsersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>Ver Perfil</DropdownMenuItem>
                             <DropdownMenuItem>Ver Trabajos</DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => handleDeleteUser(u.id, u.name || 'este usuario')}
                               disabled={loading}
@@ -191,7 +190,7 @@ export default function AdminUsersPage() {
               </Table>
               {allUsers.length === 0 && (
                 <div className="py-12 text-center text-muted-foreground">
-                    <p>No se encontraron usuarios (excluyendo administradores).</p>
+                  <p>No se encontraron usuarios (excluyendo administradores).</p>
                 </div>
               )}
             </CardContent>
