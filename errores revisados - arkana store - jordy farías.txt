@@ -1,0 +1,30 @@
+1. no tiene el nombre Arkana en el header. ✅
+2. enlaces vacíos. ✅
+3. error en la conexión con cuentas de google, "Error al procesar autenticación de Google". ✅
+4. al ya estar logeado vuelve a aparecer la opción de crear cuenta, lo cual no tiene sentido. ✅
+9. no se visualiza la miniatura de lo que se publica en la sección "mis trabajos". ✅
+10. al darle click a la opción "ver" dentro del trabajo subido no se visualiza tampoco la imagen cargada.✅
+13. al hacer click en el botón "Publicar Reseña" no realiza la tarea esperada, envia el siguiente error "Error al enviar la reseña. Intenta de nuevo." ✅
+-- decidir si se podrá eliminar una categoría o si se elimina la opción de eliminar la categoría.✅
+6. error de autenticación, figura que soy el admin y que puedo eliminar las categorias,pero al intentarlo me sale un mensaje de error de autenticación imposibilitando 
+esta petición,✅
+- Perfil: header: no actualiza el avatar cambiado tras actualización, tampoco el form de perfil al actualizarlo se mantiene el placeholder no toma el nuevo avatar ✅
+17. después de darle click al botón "ver" un trabajo aprobado como rol "admin" me redirige a una pagina de error. ✅
+14. en la sección de "explorar trabajos" no carga los trabajos subidos, se realizó una subida de prueba y no lo reconoce.✅
+15. error fatal al darle click a un trabajo subido a la plataforma.✅
+Admin: Dashboard: Actividad reciente trabajos sin fecha ✅
+11. error 404 al darle click a las etiquetas como "Desarrollo Web" por ejemplo.✅
+- General: lo añadido al carrito de compras de cualquier usuario se mantiene entre diferentes usuarios ✅
+- Admin: al darle a aprobar o eliminar no sale nada, haciendo ver como que no funciono pero si se cambio a aprobado- visual ✅
+12. botones de "corazón" y "compartir" no funcionan (ESTATICOS). ✅
+- Admin: page usuarios falta cargar la fecha de registro de los usuarios [pendiente]✅
+
+5. el navegador es muy lento, cada vez que se da una petición tarda al rededor de entre 3 a 5 segundos en redirigir. [pendiente]
+7. error 404 al crearme una cuenta con rol "comprador" e intentar ingresar a mi perfil. ✅
+8. error 404 al crearme una cuenta con rol "comprador" e intentar ingresar a mis pedidos. ✅
+
+
+
+
+
+
